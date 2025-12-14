@@ -9,6 +9,7 @@ import { NewJobRequest } from "./components/NewJobRequest";
 import { Settings } from "./components/Settings";
 import { ManagerDashboard } from "./components/ManagerDashboard";
 import { FloatingQuickMenu } from "./components/FloatingQuickMenu";
+import CsvUploader from "./components/CsvUploader";
 import { ExportReportDialog } from "./components/ExportReportDialog";
 import { TeamViewDialog } from "./components/TeamViewDialog";
 import { RevenueDialog } from "./components/RevenueDialog";
@@ -24,6 +25,7 @@ function AppContent() {
   const [showExportReport, setShowExportReport] = useState(false);
   const [showTeamView, setShowTeamView] = useState(false);
   const [showRevenue, setShowRevenue] = useState(false);
+  const [showCsvUpload, setShowCsvUpload] = useState(false);
 
   const getPageTitle = () => {
     switch (activeTab) {
@@ -90,11 +92,24 @@ function AppContent() {
       )}
 
       {/* Floating Quick Menu - Available on all tabs */}
-      <FloatingQuickMenu 
+      <FloatingQuickMenu
         onExportReport={() => setShowExportReport(true)}
         onManagerDetails={() => setShowTeamView(true)}
         onRevenue={() => setShowRevenue(true)}
+        onCsvUpload={() => setShowCsvUpload(true)}
       />
+
+      {/* CSV Upload Dialog */}
+      <Dialog open={showCsvUpload} onOpenChange={setShowCsvUpload}>
+        <DialogContent className="max-w-3xl max-h-[90vh] p-0">
+          <div className="p-6 pb-4 border-b">
+            <h3 className="text-lg font-semibold">Upload CSV / Excel</h3>
+          </div>
+          <div className="px-6 pb-6 overflow-y-auto max-h-[calc(90vh-100px)]">
+            <CsvUploader />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Bottom Navigation */}
       <BodyshopBottomNav 
