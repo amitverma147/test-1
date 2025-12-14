@@ -5,7 +5,65 @@
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>PASCO Bodyshop Dashboard</title>
-      <script type="module" crossorigin src="/assets/index-CfqS96BX.js"></script>
+      <!--
+        Lightweight fail-safe overlay: if the main JS bundle fails to load (404 or parse error)
+        this script will show a visible message on the page directing you to open DevTools.
+        This helps surface 'white screen' issues when the module script never executes.
+      -->
+      <script>
+        (function () {
+          // show a friendly overlay if the app hasn't mounted after a short delay
+          const overlayId = '__load_error_overlay__';
+          function show(msg) {
+            if (document.getElementById(overlayId)) return;
+            const el = document.createElement('div');
+            el.id = overlayId;
+            Object.assign(el.style, {
+              position: 'fixed', left: 0, right: 0, top: 0, padding: '12px',
+              background: 'rgba(200,0,0,0.9)', color: '#fff', zIndex: 999999,
+              fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+              whiteSpace: 'pre-wrap'
+            });
+            el.textContent = msg;
+            document.addEventListener('DOMContentLoaded', function () {
+              document.body.appendChild(el);
+            });
+          }
+          // Attach global error handlers so runtime exceptions are visible even if the React app crashes
+          function formatErrorMessage(e, stack) {
+            return (e && e.message) ? `${e.message}\n\n${stack || ''}` : String(e || 'Unknown error');
+          }
+
+          window.addEventListener('error', function (ev) {
+            try {
+              const msg = formatErrorMessage(ev.error || ev.message, ev.error && ev.error.stack);
+              show('Uncaught error:\n' + msg);
+            } catch (err) {
+              try { show('Uncaught error: ' + String(ev.error || ev.message)); } catch (e) {}
+            }
+          });
+
+          window.addEventListener('unhandledrejection', function (ev) {
+            try {
+              const reason = ev && ev.reason;
+              const msg = formatErrorMessage(reason, reason && reason.stack);
+              show('Unhandled promise rejection:\n' + msg);
+            } catch (err) {
+              try { show('Unhandled promise rejection'); } catch (e) {}
+            }
+          });
+
+          // If the script never runs, mount won't happen — show message after 2.5s
+          setTimeout(function () {
+            // Heuristic: if root is empty, assume app didn't mount
+            const root = document.getElementById('root');
+            if (!root || root.innerHTML.trim() === '') {
+              show('App failed to load.\nOpen DevTools (Console & Network) to see errors.\nCheck that /assets/* JS files are reachable and that environment variables required at build time are set.');
+            }
+          }, 2500);
+        })();
+      </script>
+      <script type="module" crossorigin src="/assets/index-D3hqezGl.js"></script>
       <link rel="stylesheet" crossorigin href="/assets/index-VzZWJPZ-.css">
     </head>
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MobileHeader } from "./components/MobileHeader";
 import { BodyshopBottomNav } from "./components/BodyshopBottomNav";
 import { BodyshopDashboard } from "./components/BodyshopDashboard";
