@@ -142,9 +142,15 @@ export default function CsvUploader({
       setParsing(false);
 
       if (errors && errors.length) {
-        setError(
-          `Upload finished with ${errors.length} error(s). See console for first error.`
-        );
+        // Surface the first error in the UI so it's easier to diagnose without opening devtools
+        const first = errors[0];
+        let msg = "Upload finished with errors.";
+        try {
+          msg = `Upload finished with ${errors.length} error(s). First: ${JSON.stringify(first)}`;
+        } catch (e) {
+          msg = `Upload finished with ${errors.length} error(s). First error: ${String(first)}`;
+        }
+        setError(msg);
         console.error("CSV upload errors sample:", errors.slice(0, 5));
       } else {
         setSuccessMessage(`Uploaded ${inserted} rows successfully.`);
@@ -200,7 +206,7 @@ export default function CsvUploader({
                 <div style={{ marginTop: 12 }}>
                   <CsvMapper headers={headers} onMappingChange={setMapping} />
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    <input placeholder="Preset name" value={presetName} onChange={(e) => setPresetName(e.target.value)} />
+                    <input placeholder="Preset name" value={presetName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPresetName(e.target.value)} />
                     <button type="button" onClick={async () => {
                       // Save preset (use Authorization header)
                       const { data } = await supabase.auth.getSession();
