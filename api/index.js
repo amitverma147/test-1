@@ -18,10 +18,17 @@ module.exports = (req, res) => {
       return res.end(JSON.stringify({ ok: true, message: 'API router active' }));
     }
 
-    // route to upload-csv JS fallback
+    // route /api/upload-csv to the real JS handler that persists to Supabase
     if (path === '/api/upload-csv' || path === '/api/upload-csv.js') {
-      const h = require('./upload-csv.js');
-      return h(req, res);
+      // prefer the real implementation if present
+      try {
+        const h = require('./upload-csv-real.js');
+        return h(req, res);
+      } catch (e) {
+        // fallback to the non-persistent handler if real one isn't available
+        const h = require('./upload-csv.js');
+        return h(req, res);
+      }
     }
 
     if (path === '/api/upload-csv-fallback') {
