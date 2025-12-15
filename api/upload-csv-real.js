@@ -109,7 +109,12 @@ module.exports = async (req, res) => {
 
           // Convert jobsPayloads keys to snake_case here (simple conversion)
           const toSnake = (obj) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k.replace(/([A-Z])/g, '_$1').toLowerCase(), v]));
-          const jobsSnake = jobsPayloads.map(toSnake);
+          // Convert and also attach the original payload into a `payload` jsonb column
+          const jobsSnake = jobsPayloads.map((p) => {
+            const s = toSnake(p);
+            s.payload = p;
+            return s;
+          });
 
           const { error: jobsError } = await supabaseAdmin.from('jobs').upsert(jobsSnake, { returning: 'minimal' });
           if (jobsError) {

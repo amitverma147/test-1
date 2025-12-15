@@ -32,7 +32,7 @@ export function TeamViewDialog({ open, onOpenChange }: TeamViewDialogProps) {
                   ST
                 </div>
                 <p className="text-2xl font-bold">Sunil Thakur</p>
-                <p className="text-base opacity-90 mt-2">Vice President</p>
+                <p className="text-base opacity-90 mt-2">Vice President| BodyShop</p>
                 <div className="flex gap-2 justify-center mt-4">
                   <Badge className="bg-white/20 text-white border-0">Management</Badge>
                   <Badge className="bg-white/20 text-white border-0">Leadership</Badge>

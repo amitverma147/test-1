@@ -252,18 +252,17 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
   };
 
   // Centralized helper to call the server /api/jobs endpoint and always attach Authorization if available.
-  const forwardToJobsApi = async (method: 'POST' | 'PATCH', body: any) => {
+  const forwardToJobsApi = async (method: 'GET' | 'POST' | 'PATCH', body: any) => {
     try {
   const token = await getAccessToken();
   // log presence of token for local debugging (never log token value)
   console.debug('forwardToJobsApi tokenPresent=', !!token, 'method=', method);
   const headers: any = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
-      const resp = await fetch('/api/jobs', {
-        method,
-        headers,
-        body: JSON.stringify(body),
-      });
+      const opts: any = { method, headers };
+      // Only include a body for non-GET requests
+      if (method !== 'GET' && body !== undefined) opts.body = JSON.stringify(body);
+      const resp = await fetch('/api/jobs', opts);
       if (!resp.ok) {
         const text = await resp.text().catch(() => null);
         console.warn('/api/jobs responded with', resp.status, text);
@@ -278,11 +277,14 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadJobs = async () => {
       try {
-        const { data, error } = await supabase.from("jobs").select("*");
-        if (error) {
-          console.error("Failed to fetch jobs from Supabase:", error);
+        // Prefer server-side API so server can verify the user and apply any server rules.
+        const resp = await forwardToJobsApi('GET', undefined);
+        if (!resp.ok) {
+          console.error('Failed to load jobs from API', resp.status);
           return;
         }
+  const json = (await resp.json().catch(() => null)) as any;
+  const data = json?.data ?? null;
         if (!data) {
           setJobs([]);
           return;
@@ -311,7 +313,7 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    loadJobs();
+  loadJobs();
     // load server-side metrics (today + summary) to prefer backend counts for dashboard
     const refreshMetrics = async () => {
       try {

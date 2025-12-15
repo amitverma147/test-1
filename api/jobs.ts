@@ -74,13 +74,25 @@ export default async function handler(req: any, res: any) {
         updatedAt: new Date().toISOString(),
       };
 
-      const payloadSnake = toSnakeCaseKeyMap(payload);
-      const { error } = await supabaseAdmin.from('jobs').upsert([payloadSnake], { returning: 'minimal' });
+  // Persist snake-cased top-level columns and save the full job inside
+  // a `payload` jsonb column so we never lose fields coming from the UI.
+  const payloadSnake = toSnakeCaseKeyMap(payload);
+  payloadSnake.payload = payload;
+  const { error } = await supabaseAdmin.from('jobs').upsert([payloadSnake], { returning: 'minimal' });
       if (error) {
         console.error('Failed to upsert job', error);
         return res.status(500).json({ error });
       }
       return res.status(200).json({ ok: true });
+    }
+
+    if (req.method === 'GET') {
+      const { data, error } = await supabaseAdmin.from('jobs').select('*');
+      if (error) {
+        console.error('Failed to fetch jobs', error);
+        return res.status(500).json({ error });
+      }
+      return res.status(200).json({ data });
     }
 
     if (req.method === 'PATCH') {
@@ -101,8 +113,9 @@ export default async function handler(req: any, res: any) {
         updatedAt: new Date().toISOString(),
       };
 
-      const payloadSnake = toSnakeCaseKeyMap(payload);
-      const { error } = await supabaseAdmin.from('jobs').update(payloadSnake).eq('id', id);
+  const payloadSnake = toSnakeCaseKeyMap(payload);
+  payloadSnake.payload = payload;
+  const { error } = await supabaseAdmin.from('jobs').update(payloadSnake).eq('id', id);
       if (error) return res.status(500).json({ error });
       return res.status(200).json({ ok: true });
     }

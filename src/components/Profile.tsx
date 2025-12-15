@@ -16,13 +16,16 @@ export default function Profile() {
         const u = session.user;
         if (!mounted) return;
         setUser(u);
-        // load profile
-        const { data, error } = await supabase.from('profiles').select('*').eq('id', u.id).single();
-        if (error) {
-          // no profile yet
-        } else {
-          setProfile(data);
-        }
+
+        const token = session.access_token;
+        const headers: any = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const resp = await fetch('/api/profiles', { headers });
+        if (!resp.ok) return;
+        const body = await resp.json();
+        const data = body?.data ?? null;
+        if (data) setProfile(data);
       } catch (err) {
         console.error(err);
       }
@@ -35,8 +38,13 @@ export default function Profile() {
     setLoading(true);
     try {
       const payload = { id: user.id, email: user.email, full_name: user.user_metadata?.full_name ?? null, created_at: new Date().toISOString() };
-      const { error } = await supabase.from('profiles').upsert([payload]);
-      if (error) throw error;
+      // call server API to upsert profile
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = (sessionData as any)?.session?.access_token;
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const resp = await fetch('/api/profiles', { method: 'POST', headers, body: JSON.stringify({ profile: payload }) });
+      if (!resp.ok) throw new Error('Failed to create profile');
       setProfile(payload);
     } catch (err: any) {
       console.error(err);

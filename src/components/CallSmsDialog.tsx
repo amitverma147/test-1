@@ -37,10 +37,25 @@ export function CallSmsDialog({ open, onOpenChange, job, mode }: CallSmsDialogPr
     let mounted = true;
     (async () => {
       try {
-        const { data, error } = await supabase.from('quick_messages').select('message').limit(50);
-        if (!error && Array.isArray(data) && mounted) {
-          setQuickMessages(data.map((r: any) => r.message).filter(Boolean));
-          return;
+        let token = null;
+        try {
+          const { data: s } = await supabase.auth.getSession();
+          token = (s as any)?.session?.access_token ?? null;
+        } catch (e) {
+          // ignore
+        }
+
+        const headers: any = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const resp = await fetch('/api/quick_messages', { headers });
+        if (resp.ok) {
+          const body = await resp.json();
+          const data = body?.data ?? null;
+          if (Array.isArray(data) && mounted) {
+            setQuickMessages(data.map((r: any) => r.message).filter(Boolean));
+            return;
+          }
         }
       } catch (e) {
         // ignore

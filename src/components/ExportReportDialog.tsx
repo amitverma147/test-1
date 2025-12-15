@@ -386,18 +386,29 @@ PASCO Bodyshop Management System
   };
 
   useEffect(() => {
-    // try to load inventory from Supabase if table exists
+    // try to load inventory via the server API (server will use service role)
     let mounted = true;
     (async () => {
       try {
-        const { data, error } = await supabase.from('inventory').select('*').limit(200);
-        if (error) {
-          // ignore - table may not exist in user's Supabase
-          return;
+        // reuse client session token for auth; fall back to unauthenticated fetch if unavailable
+        let token = null;
+        try {
+          const { data: s } = await supabase.auth.getSession();
+          token = (s as any)?.session?.access_token ?? null;
+        } catch (e) {
+          // ignore - we'll attempt fetch without auth
         }
+
+        const headers: any = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const resp = await fetch('/api/inventory', { headers });
+        if (!resp.ok) return;
+        const body = await resp.json();
+        const data = body?.data ?? null;
         if (mounted && Array.isArray(data)) setInventoryItems(data as any[]);
       } catch (e) {
-        // ignore
+        // ignore and keep defaults
       }
     })();
     return () => { mounted = false; };

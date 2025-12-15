@@ -20,13 +20,22 @@ export function InventoryDialog({ open, onOpenChange }: InventoryDialogProps) {
     let mounted = true;
     (async () => {
       try {
-        const { data, error } = await supabase.from('inventory').select('*').limit(300);
-        if (error) {
-          // if table doesn't exist or permission error, fall back to defaults
-          return;
+        let token = null;
+        try {
+          const { data: s } = await supabase.auth.getSession();
+          token = (s as any)?.session?.access_token ?? null;
+        } catch (e) {
+          // ignore
         }
+
+        const headers: any = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const resp = await fetch('/api/inventory', { headers });
+        if (!resp.ok) return;
+        const body = await resp.json();
+        const data = body?.data ?? null;
         if (mounted && Array.isArray(data)) {
-          // normalize fields to expected shape
           const normalized = data.map((it: any) => ({
             name: it.name || it.item_name || 'Unnamed',
             quantity: it.quantity ?? it.qty ?? 0,
