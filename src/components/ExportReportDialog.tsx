@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import supabase from "../supabase/client";
 import { useEffect } from "react";
 import { Download, FileText, Calendar } from "lucide-react";
+import * as XLSX from "xlsx";
 import { useBodyshopData } from "./BodyshopDataContext";
 
 interface ExportReportDialogProps {
@@ -35,9 +36,13 @@ export function ExportReportDialog({ open, onOpenChange }: ExportReportDialogPro
       return jobDate === today;
     });
 
-  const inProgress = todayJobs.filter(j => String(j.status || '').toLowerCase() === "in-progress" || String(j.status || '').toLowerCase() === 'in-progress').length;
-  const completed = todayJobs.filter(j => String(j.status || '').toLowerCase() === "completed").length;
-  const totalRevenue = todayJobs.reduce((sum, job) => sum + (Number((job as any).billAmount ?? (job as any).estimatedBilling ?? 0) || 0), 0);
+    const statusOf = (s: any) => String(s || '').toLowerCase();
+    const inProgress = todayJobs.filter(j => statusOf(j.status) === 'in-progress').length;
+    const completed = todayJobs.filter(j => statusOf(j.status) === 'completed').length;
+    const totalRevenue = todayJobs.reduce((sum, job) => {
+      const rev = Number((job as any).billAmount ?? (job as any).estimatedBilling ?? (job as any).services?.reduce((s: number, it: any) => s + (it?.estimatedCost ?? 0), 0) ?? 0) || 0;
+      return sum + rev;
+    }, 0);
 
     let report = `
 PASCO BODYSHOP - DAILY REPORT
@@ -125,10 +130,17 @@ PASCO Bodyshop Management System
       return jobDate >= weekStart;
     });
 
-    const totalRevenue = weekJobs.reduce((sum, job) => sum + (job.estimatedBilling || 0), 0);
+    const statusOf = (s: any) => String(s || '').toLowerCase();
+    const totalRevenue = weekJobs.reduce((sum, job) => {
+      const rev = Number((job as any).billAmount ?? (job as any).estimatedBilling ?? (job as any).services?.reduce((s: number, it: any) => s + (it?.estimatedCost ?? 0), 0) ?? 0) || 0;
+      return sum + rev;
+    }, 0);
     const avgDailyRevenue = totalRevenue / 7;
 
-    let report = `
+  const weekCompleted = weekJobs.filter(j => statusOf(j.status) === 'completed').length;
+  const weekInProgress = weekJobs.filter(j => statusOf(j.status) === 'in-progress').length;
+
+  let report = `
 PASCO BODYSHOP - WEEKLY REPORT
 ===============================
 Period: ${weekStart.toLocaleDateString()} - ${new Date().toLocaleDateString()}
@@ -137,8 +149,8 @@ Generated: ${new Date().toLocaleString()}
 SUMMARY
 -------
 Total Jobs This Week: ${weekJobs.length}
-Completed: ${weekJobs.filter(j => j.status === "completed").length}
-In Progress: ${weekJobs.filter(j => j.status === "in-progress").length}
+Completed: ${weekCompleted}
+In Progress: ${weekInProgress}
 
 REVENUE
 -------
@@ -148,7 +160,7 @@ Average per Job: ₹${weekJobs.length > 0 ? Math.round(totalRevenue / weekJobs.l
 
 PERFORMANCE METRICS
 -------------------
-Job Completion Rate: ${weekJobs.length > 0 ? Math.round((weekJobs.filter(j => j.status === "completed").length / weekJobs.length) * 100) : 0}%
+Job Completion Rate: ${weekJobs.length > 0 ? Math.round((weekCompleted / weekJobs.length) * 100) : 0}%
 Customer Satisfaction: 4.6/5.0
 Average Turnaround Time: 2.5 days
 
@@ -175,9 +187,15 @@ PASCO Bodyshop Management System
       return jobDate >= monthStart;
     });
 
-    const totalRevenue = monthJobs.reduce((sum, job) => sum + (job.estimatedBilling || 0), 0);
+    const totalRevenue = monthJobs.reduce((sum, job) => {
+      const rev = Number((job as any).billAmount ?? (job as any).estimatedBilling ?? (job as any).services?.reduce((s: number, it: any) => s + (it?.estimatedCost ?? 0), 0) ?? 0) || 0;
+      return sum + rev;
+    }, 0);
 
-    let report = `
+  const monthCompleted = monthJobs.filter(j => String(j.status || '').toLowerCase() === 'completed').length;
+  const monthInProgress = monthJobs.filter(j => String(j.status || '').toLowerCase() === 'in-progress').length;
+
+  let report = `
 PASCO BODYSHOP - MONTHLY REPORT
 ================================
 Month: ${monthStart.toLocaleString('default', { month: 'long', year: 'numeric' })}
@@ -186,8 +204,8 @@ Generated: ${new Date().toLocaleString()}
 EXECUTIVE SUMMARY
 -----------------
 Total Jobs: ${monthJobs.length}
-Completed: ${monthJobs.filter(j => j.status === "completed").length}
-In Progress: ${monthJobs.filter(j => j.status === "in-progress").length}
+Completed: ${monthCompleted}
+In Progress: ${monthInProgress}
 Total Revenue: ₹${totalRevenue.toLocaleString()}
 
 FINANCIAL OVERVIEW
@@ -408,17 +426,98 @@ PASCO Bodyshop Management System
         reportContent = generateDailyReport();
     }
 
-    const blob = new Blob([reportContent], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `PASCO_${reportType}_Report_${Date.now()}.${format}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      if (format === 'csv') {
+        // convert to tabular CSV: use jobs for the period and include selected details
+        const rows = getJobsForReport(reportType).map((job) => ({
+          JobCard: job.jobCardNumber ?? job.job_card ?? '',
+          CreatedAt: job.createdAt ? new Date(job.createdAt).toISOString() : '',
+          Customer: job.customerName ?? job.customer_name ?? '',
+          Mobile: job.customerMobile ?? job.customer_mobile ?? job.customerPhone ?? '',
+          RegNo: job.vehicleRegNo ?? job.regNo ?? job.registration ?? '',
+          Type: job.jobType ?? job.job_type ?? '',
+          Status: job.status ?? job.state ?? '',
+          Labour: Number(job.labourAmt ?? job.labour_amt ?? 0) || 0,
+          Parts: Number(job.partAmt ?? job.part_amt ?? 0) || 0,
+          BillAmount: Number(job.billAmount ?? job.bill_amount ?? 0) || 0,
+          Profit: Number(job.profit ?? 0) || 0,
+        }));
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const csv = XLSX.utils.sheet_to_csv(ws);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `PASCO_${reportType}_Report_${Date.now()}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else if (format === 'xlsx') {
+        const rows = getJobsForReport(reportType).map((job) => ({
+          JobCard: job.jobCardNumber ?? job.job_card ?? '',
+          CreatedAt: job.createdAt ? new Date(job.createdAt).toISOString() : '',
+          Customer: job.customerName ?? job.customer_name ?? '',
+          Mobile: job.customerMobile ?? job.customer_mobile ?? job.customerPhone ?? '',
+          RegNo: job.vehicleRegNo ?? job.regNo ?? job.registration ?? '',
+          Type: job.jobType ?? job.job_type ?? '',
+          Status: job.status ?? job.state ?? '',
+          Labour: Number(job.labourAmt ?? job.labour_amt ?? 0) || 0,
+          Parts: Number(job.partAmt ?? job.part_amt ?? 0) || 0,
+          BillAmount: Number(job.billAmount ?? job.bill_amount ?? 0) || 0,
+          Profit: Number(job.profit ?? 0) || 0,
+        }));
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, 'Jobs');
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `PASCO_${reportType}_Report_${Date.now()}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        const blob = new Blob([reportContent], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `PASCO_${reportType}_Report_${Date.now()}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
 
-    toast.success(`${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report downloaded!`);
+      toast.success(`${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report downloaded!`);
+    } catch (err) {
+      console.error('Export failed', err);
+      toast.error('Failed to export report');
+    }
+  };
+
+  // Helper to return jobs for a given report type
+  const getJobsForReport = (type: string) => {
+    const now = new Date();
+    if (type === 'daily') {
+      const todayStr = new Date().toLocaleDateString();
+      return jobs.filter((job) => new Date(job.createdAt).toLocaleDateString() === todayStr);
+    }
+    if (type === 'weekly') {
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - 7);
+      return jobs.filter((job) => new Date(job.createdAt) >= weekStart);
+    }
+    if (type === 'monthly') {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      return jobs.filter((job) => new Date(job.createdAt) >= monthStart);
+    }
+    // team/inventory or default: return all jobs
+    return jobs;
   };
 
   return (
@@ -460,7 +559,7 @@ PASCO Bodyshop Management System
               <SelectContent>
                 <SelectItem value="txt">Text (.txt)</SelectItem>
                 <SelectItem value="csv">CSV (.csv)</SelectItem>
-                <SelectItem value="pdf">PDF (.pdf)</SelectItem>
+                <SelectItem value="xlsx">Excel (.xlsx)</SelectItem>
               </SelectContent>
             </Select>
           </div>

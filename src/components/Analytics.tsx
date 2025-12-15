@@ -30,10 +30,11 @@ export function Analytics() {
   const cashJobs = jobs.filter(j => j.jobType === "Cash").length;
   const warrantyJobs = jobs.filter(j => j.jobType === "Warranty").length;
 
-  // Revenue calculation
-  const totalRevenue = jobs
-    .filter(j => j.services && j.services.length > 0)
-    .reduce((sum, j) => sum + j.services.reduce((s, service) => s + service.estimatedCost, 0), 0);
+  // Revenue calculation: prefer explicit billAmount, fallback to services estimatedCost
+  const totalRevenue = jobs.reduce((sum, j) => {
+    const rev = Number(j.billAmount ?? j.services?.reduce((s, it) => s + (it?.estimatedCost ?? 0), 0) ?? 0) || 0;
+    return sum + rev;
+  }, 0);
   
   const avgJobValue = totalJobs > 0 ? totalRevenue / totalJobs : 0;
 
@@ -340,8 +341,8 @@ export function Analytics() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-900">{tech.avg} ★</p>
-                    <p className="text-xs text-gray-500">Rating</p>
+                    <p className="text-sm text-gray-900">₹{Number(tech.revenue || 0).toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">Revenue</p>
                   </div>
                 </div>
               ))}
