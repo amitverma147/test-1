@@ -36,9 +36,7 @@ ADD COLUMN IF NOT EXISTS city TEXT,
 ADD COLUMN IF NOT EXISTS pin TEXT,
 
 -- billing / amounts
-ADD COLUMN IF NOT EXISTS est_lab_amt NUMERIC,
 ADD COLUMN IF NOT EXISTS estlab_amt NUMERIC,
-ADD COLUMN IF NOT EXISTS est_part_amt NUMERIC,
 ADD COLUMN IF NOT EXISTS estpart_amt NUMERIC,
 ADD COLUMN IF NOT EXISTS rev_est_part_amt NUMERIC,
 ADD COLUMN IF NOT EXISTS rev_est_lab_amt NUMERIC,
@@ -77,3 +75,68 @@ ADD COLUMN IF NOT EXISTS status TEXT,
 ADD COLUMN IF NOT EXISTS pickup_required TEXT,
 ADD COLUMN IF NOT EXISTS pickup_location TEXT,
 ADD COLUMN IF NOT EXISTS mileage TEXT;
+
+-- ------------------------------
+-- Ensure `raw` is never NULL (coerce to empty jsonb) and make
+-- several commonly-nullable columns actually nullable.
+-- This block is safe to run repeatedly.
+-- ------------------------------
+
+-- Make `raw` temporarily nullable so we can update existing rows.
+ALTER TABLE IF EXISTS public.bhiwani_service_jobs_raw
+ALTER COLUMN raw DROP NOT NULL;
+
+-- Create trigger function to coerce NULL -> '{}'::jsonb for raw
+CREATE OR REPLACE FUNCTION public.ensure_raw_not_null()
+RETURNS trigger AS $$
+BEGIN
+	IF NEW.raw IS NULL THEN
+		NEW.raw := '{}'::jsonb;
+	END IF;
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Attach trigger (idempotent)
+DROP TRIGGER IF EXISTS ensure_raw_not_null_trg ON public.bhiwani_service_jobs_raw;
+CREATE TRIGGER ensure_raw_not_null_trg
+BEFORE INSERT OR UPDATE ON public.bhiwani_service_jobs_raw
+FOR EACH ROW EXECUTE FUNCTION public.ensure_raw_not_null();
+
+-- Update existing rows with NULL raw
+UPDATE public.bhiwani_service_jobs_raw
+SET raw = '{}'::jsonb
+WHERE raw IS NULL;
+
+-- Set default and re-enable NOT NULL on raw
+ALTER TABLE IF EXISTS public.bhiwani_service_jobs_raw
+ALTER COLUMN raw SET DEFAULT '{}'::jsonb;
+
+-- Re-enable NOT NULL (trigger makes this safe)
+ALTER TABLE IF EXISTS public.bhiwani_service_jobs_raw
+ALTER COLUMN raw SET NOT NULL;
+
+-- Make list of columns explicitly nullable (if they exist)
+DO $$
+DECLARE
+	col TEXT;
+	cols TEXT[] := ARRAY[
+		'repeat_revisit', 'phone', 'customer_catg', 'circular_no',
+		'app_sent_date', 'app_rej_date', 'cust_remarks', 'dlr_remarks',
+		'pickup_date', 'pickup_location', 'address2', 'address3',
+		'dob', 'doa'
+	];
+BEGIN
+	FOREACH col IN ARRAY cols LOOP
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_schema = 'public'
+				AND table_name = 'bhiwani_service_jobs_raw'
+				AND column_name = col
+		) THEN
+			EXECUTE format('ALTER TABLE public.bhiwani_service_jobs_raw ALTER COLUMN %I DROP NOT NULL', col);
+		END IF;
+	END LOOP;
+END
+$$;
+
