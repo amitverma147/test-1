@@ -216,6 +216,64 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
     return j;
   };
 
+  // Robust token retrieval: try supabase SDK, then fall back to localStorage inspection.
+  const getAccessToken = async (): Promise<string | null> => {
+    try {
+      const sess = await supabase.auth.getSession();
+      const token = (sess as any)?.data?.session?.access_token || (sess as any)?.access_token || null;
+      if (token) return token;
+    } catch (e) {
+      // ignore
+    }
+
+    // Fallback: try common localStorage keys used by supabase client
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const ls = window.localStorage;
+        // check a few likely keys
+        const keys = Object.keys(ls).filter(k => /sb:|supabase|session|auth/i.test(k));
+        for (const k of keys) {
+          try {
+            const raw = ls.getItem(k);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            const t = parsed?.access_token || parsed?.currentSession?.access_token || parsed?.session?.access_token;
+            if (t) return t;
+          } catch (err) {
+            // continue
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  };
+
+  // Centralized helper to call the server /api/jobs endpoint and always attach Authorization if available.
+  const forwardToJobsApi = async (method: 'POST' | 'PATCH', body: any) => {
+    try {
+  const token = await getAccessToken();
+  // log presence of token for local debugging (never log token value)
+  console.debug('forwardToJobsApi tokenPresent=', !!token, 'method=', method);
+  const headers: any = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+      const resp = await fetch('/api/jobs', {
+        method,
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => null);
+        console.warn('/api/jobs responded with', resp.status, text);
+      }
+      return resp;
+    } catch (err) {
+      console.error('forwardToJobsApi error', err);
+      throw err;
+    }
+  };
+
   useEffect(() => {
     const loadJobs = async () => {
       try {
@@ -279,17 +337,7 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       try {
         computeProfitForJob(newJob);
         const payload = serialize(newJob);
-        // get session to forward Authorization
-        const sess = await supabase.auth.getSession();
-        const token = (sess as any)?.data?.session?.access_token || (sess as any)?.access_token || null;
-        await fetch('/api/jobs', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ job: payload })
-        });
+        await forwardToJobsApi('POST', { job: payload });
       } catch (err) {
         console.error("Persist new job error:", err);
         toast.error("Failed to save job to server. It will be retried later.");
@@ -311,16 +359,7 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       try {
         const up = computeProfitForJob({ id, ...updates, updatedAt: new Date() });
         const payload = serialize(up);
-        const sess = await supabase.auth.getSession();
-        const token = (sess as any)?.data?.session?.access_token || (sess as any)?.access_token || null;
-        await fetch('/api/jobs', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ id, updates: payload })
-        });
+        await forwardToJobsApi('PATCH', { id, updates: payload });
       } catch (err) {
         console.error("Persist update job error:", err);
         toast.error("Failed to update job on server.");
@@ -382,16 +421,7 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
         };
         computeProfitForJob(updatedJob);
         const payload = serialize(updatedJob);
-        const sess = await supabase.auth.getSession();
-        const token = (sess as any)?.data?.session?.access_token || (sess as any)?.access_token || null;
-        await fetch('/api/jobs', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ job: payload })
-        });
+        await forwardToJobsApi('POST', { job: payload });
       } catch (err) {
         console.error("Supabase addPhoto error:", err);
       }
@@ -422,16 +452,7 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
         };
         computeProfitForJob(updatedJob);
         const payload = serialize(updatedJob);
-        const sess = await supabase.auth.getSession();
-        const token = (sess as any)?.data?.session?.access_token || (sess as any)?.access_token || null;
-        await fetch('/api/jobs', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ job: payload })
-        });
+        await forwardToJobsApi('POST', { job: payload });
       } catch (err) {
         console.error("Supabase addNote error:", err);
       }
@@ -462,16 +483,7 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
         };
         computeProfitForJob(updatedJob);
         const payload = serialize(updatedJob);
-        const sess = await supabase.auth.getSession();
-        const token = (sess as any)?.data?.session?.access_token || (sess as any)?.access_token || null;
-        await fetch('/api/jobs', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ job: payload })
-        });
+        await forwardToJobsApi('POST', { job: payload });
       } catch (err) {
         console.error("Supabase addCallLog error:", err);
       }
@@ -502,16 +514,7 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
         };
         computeProfitForJob(updatedJob);
         const payload = serialize(updatedJob);
-        const sess = await supabase.auth.getSession();
-        const token = (sess as any)?.data?.session?.access_token || (sess as any)?.access_token || null;
-        await fetch('/api/jobs', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ job: payload })
-        });
+        await forwardToJobsApi('POST', { job: payload });
       } catch (err) {
         console.error("Supabase addService error:", err);
       }
