@@ -30,6 +30,10 @@ export function BodyshopDashboard({ onNewJobClick }: BodyshopDashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
+  // Diagnostic: if Vite supabase envs are missing at runtime, show a helpful banner.
+  const viteSupabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+  const viteSupabaseKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+
   const displayedJobs = searchQuery ? searchJobs(searchQuery) : jobs.slice(0, 5);
   const followUpReminders = getFollowUpReminders();
 
@@ -66,6 +70,16 @@ export function BodyshopDashboard({ onNewJobClick }: BodyshopDashboardProps) {
 
   return (
     <div className="space-y-4">
+      {/* Diagnostic banner: missing VITE_SUPABASE envs */}
+      {(!viteSupabaseUrl || !viteSupabaseKey) && (
+        <Card className="border-l-4 border-l-yellow-400 bg-yellow-50">
+          <CardContent>
+            <div className="text-sm text-yellow-900">
+              <strong>Note:</strong> Supabase client environment variables are not set in this build. The dashboard will show no data until you set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in your Vercel project (or local .env) and redeploy.
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {/* Search Bar */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />

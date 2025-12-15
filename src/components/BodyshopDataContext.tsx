@@ -142,6 +142,7 @@ const BodyshopDataContext = createContext<BodyshopDataContextType | undefined>(u
 
 export function BodyshopDataProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [metrics, setMetrics] = useState<any | null>(null);
 
   // Helper to convert Date objects to ISO strings so Supabase receives stable values.
   const serialize = (obj: any) =>
@@ -311,6 +312,20 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
     };
 
     loadJobs();
+    // load server-side metrics (today + summary) to prefer backend counts for dashboard
+    const refreshMetrics = async () => {
+      try {
+        const todayResp = await fetch('/api/metrics?mode=today');
+        const todayJson = todayResp.ok ? await todayResp.json() : null;
+        const summaryResp = await fetch('/api/metrics?mode=summary');
+        const summaryJson = summaryResp.ok ? await summaryResp.json() : null;
+        setMetrics({ today: todayJson, summary: summaryJson });
+      } catch (err) {
+        console.warn('Failed to fetch metrics', err);
+      }
+    };
+
+    refreshMetrics();
   }, []);
 
   const addJob = (job: Omit<Job, "id" | "createdAt" | "updatedAt" | "activityLog" | "completedStages" | "currentStage">) => {
@@ -576,6 +591,8 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
   };
 
   const getTodayJobsCount = () => {
+    // Prefer server-calculated metric when available
+    if (metrics?.today?.totalCreatedToday != null) return Number(metrics.today.totalCreatedToday);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return jobs.filter((job) => {
@@ -586,20 +603,41 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
   };
 
   const getInProgressCount = () => {
+    // Prefer server summary (openJobs) if available, otherwise compute locally
+    if (metrics?.summary?.openJobs != null) return Number(metrics.summary.openJobs);
     return jobs.filter((job) => job.status === "In-Progress").length;
   };
 
   const getCompletedCount = () => {
+    // If summary metrics not available, fall back to local computation
+    if (metrics?.today?.completedCreatedToday != null) {
+      // prefer today's completed if that maps to caller needs; otherwise fallback
+      return Number(metrics.today.completedCreatedToday);
+    }
     return jobs.filter((job) => job.status === "Completed").length;
   };
 
   const getApprovalPendingCount = () => {
+    // This is a domain-specific filter; prefer server's follow-up / summary data if provided.
+    if (metrics?.summary && metrics.summary.approvalPending != null) return Number(metrics.summary.approvalPending);
     return jobs.filter(
       (job) => job.jobType === "Insurance" && job.currentStage === "Estimate Sent"
     ).length;
   };
 
   const getFollowUpReminders = () => {
+    // Prefer server-provided followup list if returned (today's due) else compute locally
+    if (metrics?.today && Array.isArray(metrics.today.dueFollowUps)) {
+      // The API currently returns a count; if in future it returns list, prefer it.
+      return jobs.filter((job) => {
+        if (!job.followUpDate) return false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const followUp = new Date(job.followUpDate);
+        followUp.setHours(0, 0, 0, 0);
+        return followUp.getTime() <= today.getTime() && job.status !== "Completed";
+      });
+    }
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return jobs.filter((job) => {
