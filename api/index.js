@@ -31,6 +31,37 @@ module.exports = (req, res) => {
       }
     }
 
+    // route /api/jobs to the JS handler if present
+    if (path === '/api/jobs' || path === '/api/jobs.js') {
+      try {
+        const h = require('./jobs.js');
+        return h(req, res);
+      } catch (e) {
+        console.error('Failed to load api/jobs.js', e);
+        return sendNotFound(res);
+      }
+    }
+
+    // route /api/metrics
+    if (path === '/api/metrics' || path === '/api/metrics.js') {
+      try {
+        const h = require('./metrics.js');
+        return h(req, res);
+      } catch (e) {
+        console.error('Failed to load api/metrics.js', e);
+        return sendNotFound(res);
+      }
+    }
+
+    // route inventory and quick_messages
+    if (path === '/api/inventory' || path === '/api/inventory.js') {
+      try { const h = require('./inventory.js'); return h(req, res); } catch (e) { console.error('Failed to load api/inventory.js', e); return sendNotFound(res); }
+    }
+
+    if (path === '/api/quick_messages' || path === '/api/quick_messages.js') {
+      try { const h = require('./quick_messages.js'); return h(req, res); } catch (e) { console.error('Failed to load api/quick_messages.js', e); return sendNotFound(res); }
+    }
+
     if (path === '/api/upload-csv-fallback') {
       const h = require('./upload-csv-fallback.js');
       return h(req, res);
