@@ -8,6 +8,8 @@ import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Calendar as CalendarComponent } from "./ui/calendar";
 import { 
   User, Phone, Car, Calendar, CheckCircle2, Circle, 
   Image as ImageIcon, FileText, Clock, Shield, X, Upload
@@ -401,7 +403,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
               {/* Before Images */}
               <div className="mb-4">
                 <Label className="text-sm text-gray-700 mb-2 block">Before Images</Label>
-                {job.photos.filter(p => p.category === "Before" || ["Front", "Rear", "Left", "Right", "Damage"].includes(p.category)).length > 0 ? (
+                {job.photos && job.photos.filter(p => p.category === "Before" || ["Front", "Rear", "Left", "Right", "Damage"].includes(p.category)).length > 0 ? (
                   <div className="grid grid-cols-3 gap-3">
                     {job.photos
                       .filter(p => p.category === "Before" || ["Front", "Rear", "Left", "Right", "Damage"].includes(p.category))
@@ -429,7 +431,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
               {/* After Images */}
               <div>
                 <Label className="text-sm text-gray-700 mb-2 block">After Images</Label>
-                {job.photos.filter(p => p.category === "After").length > 0 ? (
+                {job.photos && job.photos.filter(p => p.category === "After").length > 0 ? (
                   <div className="grid grid-cols-3 gap-3">
                     {job.photos
                       .filter(p => p.category === "After")
@@ -471,7 +473,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
               </h3>
               <div className="space-y-2">
                 {statusStages.map((stage, index) => {
-                  const isCompleted = job.completedStages.includes(stage);
+                  const isCompleted = job.completedStages && job.completedStages.includes(stage);
                   const isCurrent = job.currentStage === stage;
                   
                   return (
@@ -550,7 +552,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
                 </div>
 
                 {/* Notes List */}
-                {job.notes.length > 0 && (
+                {job.notes && job.notes.length > 0 && (
                   <div className="space-y-3">
                     <Label>Previous Notes</Label>
                     {job.notes.map((note) => (
@@ -577,7 +579,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
                 Activity Log
               </h3>
               <div className="space-y-3">
-                {job.activityLog.map((activity) => (
+                {job.activityLog && job.activityLog.map((activity) => (
                   <div key={activity.id} className="flex gap-3">
                     <div className="w-2 h-2 rounded-full bg-blue-900 mt-2 flex-shrink-0" />
                     <div className="flex-1">

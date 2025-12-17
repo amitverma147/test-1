@@ -277,14 +277,16 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadJobs = async () => {
       try {
+        console.log('🔄 Loading jobs from API...');
         // Prefer server-side API so server can verify the user and apply any server rules.
         const resp = await forwardToJobsApi('GET', undefined);
         if (!resp.ok) {
-          console.error('Failed to load jobs from API', resp.status);
+          console.error('❌ Failed to load jobs from API', resp.status, resp.statusText);
           return;
         }
   const json = (await resp.json().catch(() => null)) as any;
   const data = json?.data ?? null;
+        console.log(`✅ Loaded ${data?.length || 0} jobs from API`);
         if (!data) {
           setJobs([]);
           return;
@@ -307,9 +309,10 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
         const normalized = data.map((row: any) => normalizeKeys(row));
         // Map rows to Job objects, handling `payload` if present and converting dates
         const parsed: Job[] = normalized.map(parseJobRow);
+        console.log('📊 Parsed jobs:', parsed.length);
         setJobs(parsed);
       } catch (err) {
-        console.error("Supabase loadJobs error:", err);
+        console.error("❌ Supabase loadJobs error:", err);
       }
     };
 
@@ -317,13 +320,15 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
     // load server-side metrics (today + summary) to prefer backend counts for dashboard
     const refreshMetrics = async () => {
       try {
+        console.log('🔄 Loading metrics from API...');
         const todayResp = await fetch('/api/metrics?mode=today');
         const todayJson = todayResp.ok ? await todayResp.json() : null;
         const summaryResp = await fetch('/api/metrics?mode=summary');
         const summaryJson = summaryResp.ok ? await summaryResp.json() : null;
+        console.log('📈 Metrics loaded:', { today: todayJson, summary: summaryJson });
         setMetrics({ today: todayJson, summary: summaryJson });
       } catch (err) {
-        console.warn('Failed to fetch metrics', err);
+        console.warn('⚠️ Failed to fetch metrics', err);
       }
     };
 

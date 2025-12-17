@@ -30,7 +30,7 @@ export function Followups() {
 
   // Filter jobs that need follow-up or have call logs
   const jobsWithFollowups = jobs.filter(job => 
-    job.callLogs.length > 0 || job.followUpDate || job.status !== "Completed"
+    (job.callLogs && job.callLogs.length > 0) || job.followUpDate || job.status !== "Completed"
   ).sort((a, b) => {
     // Sort by next follow-up date
     if (a.followUpDate && b.followUpDate) {
@@ -139,7 +139,7 @@ export function Followups() {
       <div className="space-y-3">
         {jobsWithFollowups.length > 0 ? (
           jobsWithFollowups.map((job) => {
-            const lastCall = job.callLogs[job.callLogs.length - 1];
+            const lastCall = job.callLogs && job.callLogs.length > 0 ? job.callLogs[job.callLogs.length - 1] : null;
             const isDue = isFollowUpDue(job);
 
             return (
@@ -219,13 +219,13 @@ export function Followups() {
                   )}
 
                   {/* All Call Logs */}
-                  {job.callLogs.length > 1 && (
+                  {job.callLogs && job.callLogs.length > 1 && (
                     <div className="mb-3">
                       <p className="text-xs text-gray-500 mb-2">
                         Call History ({job.callLogs.length} calls)
                       </p>
                       <div className="space-y-2">
-                        {job.callLogs.slice(0, -1).reverse().map((call) => (
+                        {job.callLogs && job.callLogs.slice(0, -1).reverse().map((call) => (
                           <div 
                             key={call.id}
                             className="flex items-start gap-2 p-2 bg-gray-50 rounded text-xs"

@@ -45,6 +45,18 @@ function toNumber(v) {
 module.exports = async function jobsHandler(req, res) {
   try {
     const user = await verifyUserFromAuthHeader(req);
+    
+    // Allow GET requests without auth for development/testing
+    if (req.method === 'GET') {
+      const { data, error } = await supabaseAdmin.from('jobs').select('*');
+      if (error) {
+        console.error('Failed to fetch jobs', error);
+        return res.status(500).json({ error });
+      }
+      return res.status(200).json({ data });
+    }
+    
+    // Require auth for POST/PATCH (write operations)
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
     if (req.method === 'POST') {
@@ -75,15 +87,6 @@ module.exports = async function jobsHandler(req, res) {
         return res.status(500).json({ error });
       }
       return res.status(200).json({ ok: true });
-    }
-
-    if (req.method === 'GET') {
-      const { data, error } = await supabaseAdmin.from('jobs').select('*');
-      if (error) {
-        console.error('Failed to fetch jobs', error);
-        return res.status(500).json({ error });
-      }
-      return res.status(200).json({ data });
     }
 
     if (req.method === 'PATCH') {

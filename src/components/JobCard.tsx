@@ -74,13 +74,13 @@ export function JobCard({ job, onClick }: JobCardProps) {
 
         {/* Icons Row */}
         <div className="flex items-center gap-4 pt-2 border-t">
-          {job.photos.length > 0 && (
+          {job.photos && job.photos.length > 0 && (
             <div className="flex items-center gap-1 text-gray-600">
               <Camera className="w-4 h-4" />
               <span className="text-xs">{job.photos.length}</span>
             </div>
           )}
-          {job.notes.length > 0 && (
+          {job.notes && job.notes.length > 0 && (
             <div className="flex items-center gap-1 text-gray-600">
               <FileText className="w-4 h-4" />
               <span className="text-xs">{job.notes.length}</span>
