@@ -29,7 +29,8 @@ export const FloatingQuickMenu: React.FC<Props> = ({
       className="fixed right-6 bottom-6 z-40 flex flex-col gap-3 items-center"
     >
       {/* CSV Upload */}
-      {onCsvUpload && (
+      {/* CSV Upload */}
+      {/* {onCsvUpload && (
         <Button
           onClick={onCsvUpload}
           size="icon"
@@ -39,10 +40,11 @@ export const FloatingQuickMenu: React.FC<Props> = ({
         >
           <Upload className="w-5 h-5" />
         </Button>
-      )}
+      )} */}
 
       {/* Export Report */}
-      <Button
+      {/* Export Report */}
+      {/* <Button
         onClick={onExportReport}
         size="icon"
         aria-label="Export Report"
@@ -50,7 +52,7 @@ export const FloatingQuickMenu: React.FC<Props> = ({
         className="w-12 h-12 rounded-full bg-violet-600 hover:bg-violet-700 text-white shadow-lg border-0"
       >
         <DownloadCloud className="w-5 h-5" />
-      </Button>
+      </Button> */}
 
       {/* Manager / Team Details */}
       <Button
@@ -64,7 +66,8 @@ export const FloatingQuickMenu: React.FC<Props> = ({
       </Button>
 
       {/* Revenue */}
-      <Button
+      {/* Revenue */}
+      {/* <Button
         onClick={onRevenue}
         size="icon"
         aria-label="Revenue"
@@ -72,7 +75,7 @@ export const FloatingQuickMenu: React.FC<Props> = ({
         className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg border-0"
       >
         <BarChart2 className="w-5 h-5" />
-      </Button>
+      </Button> */}
     </div>
   );
 };

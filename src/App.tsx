@@ -81,7 +81,7 @@ function AppContent() {
       </main>
 
       {/* Floating Action Button */}
-      {(activeTab === "dashboard" || activeTab === "jobs" || activeTab === "analytics") && (
+      {/* {(activeTab === "dashboard" || activeTab === "jobs" || activeTab === "analytics") && (
         <Button
           onClick={() => setShowNewJobDialog(true)}
           className="fixed bottom-24 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 shadow-xl z-40 border-0 transition-all duration-300 hover:scale-110"
@@ -89,7 +89,7 @@ function AppContent() {
         >
           <Plus className="w-6 h-6 text-white" />
         </Button>
-      )}
+      )} */}
 
       {/* Floating Quick Menu - Available on all tabs */}
       <FloatingQuickMenu
@@ -112,8 +112,8 @@ function AppContent() {
       </Dialog>
 
       {/* Bottom Navigation */}
-      <BodyshopBottomNav 
-        activeTab={activeTab} 
+      <BodyshopBottomNav
+        activeTab={activeTab}
         onTabChange={setActiveTab}
       />
 
