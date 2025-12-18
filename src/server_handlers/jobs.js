@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-const { toSnakeCaseKeyMap } = require('../utils/csvMapping');
+const { toSnakeCaseKeyMap } = require('../utils/csvMapping.cjs');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
