@@ -39,7 +39,7 @@ export function BodyshopDashboard({ onNewJobClick }: BodyshopDashboardProps) {
 
   const stats = [
     {
-      title: "Today's Jobs",
+      title: "Total Jobs",
       value: getTodayJobsCount(),
       icon: Wrench,
       color: "text-blue-600",

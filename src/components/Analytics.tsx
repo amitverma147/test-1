@@ -1,24 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { useBodyshopData } from "./BodyshopDataContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { 
-  TrendingUp, DollarSign, Users, Wrench, 
+import {
+  TrendingUp, DollarSign, Users, Wrench,
   Clock, CheckCircle2, AlertCircle, Calendar,
   BarChart3, PieChart as PieChartIcon
 } from "lucide-react";
-import { 
+import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 
 export function Analytics() {
-  const { 
-    jobs, 
+  const {
+    jobs,
     getTodayJobsCount,
     getInProgressCount,
     getCompletedCount,
     getApprovalPendingCount,
-    getJobsByStatus 
+    getJobsByStatus
   } = useBodyshopData();
 
   // Calculate analytics data
@@ -35,7 +35,7 @@ export function Analytics() {
     const rev = Number(j.billAmount ?? j.services?.reduce((s, it) => s + (it?.estimatedCost ?? 0), 0) ?? 0) || 0;
     return sum + rev;
   }, 0);
-  
+
   const avgJobValue = totalJobs > 0 ? totalRevenue / totalJobs : 0;
 
   // Top metrics - PROMINENT JOB CARD METRICS
@@ -76,8 +76,8 @@ export function Analytics() {
 
   const secondaryMetrics = [
     {
-      title: "Today's Jobs",
-      value: getTodayJobsCount(),
+      title: "Total Jobs",
+      value: totalJobs,
       icon: Calendar,
       color: "text-indigo-600",
       bg: "bg-indigo-50"
@@ -228,8 +228,8 @@ export function Analytics() {
               <div className="grid grid-cols-3 gap-2 mt-4">
                 {statusData.map((item) => (
                   <div key={item.name} className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
+                    <div
+                      className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: item.color }}
                     />
                     <span className="text-xs text-gray-600">{item.name}</span>
@@ -279,8 +279,8 @@ export function Analytics() {
                 <span className="text-gray-900">₹{avgJobValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm text-gray-600">Today&apos;s Jobs</span>
-                <span className="text-gray-900">{getTodayJobsCount()}</span>
+                <span className="text-sm text-gray-600">Total Jobs</span>
+                <span className="text-gray-900">{totalJobs}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Approval Pending</span>
@@ -389,10 +389,10 @@ export function Analytics() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="jobs" 
-                    stroke="#3b82f6" 
+                  <Line
+                    type="monotone"
+                    dataKey="jobs"
+                    stroke="#3b82f6"
                     strokeWidth={2}
                     name="Jobs"
                   />
@@ -417,10 +417,10 @@ export function Analytics() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="#10b981" 
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#10b981"
                     strokeWidth={2}
                     name="Revenue (₹)"
                   />
