@@ -45,7 +45,7 @@ function toNumber(v) {
 module.exports = async function jobsHandler(req, res) {
   try {
     const user = await verifyUserFromAuthHeader(req);
-    
+
     // Allow GET requests without auth for development/testing
     if (req.method === 'GET') {
       const { data, error } = await supabaseAdmin.from('jobs').select('*');
@@ -55,7 +55,7 @@ module.exports = async function jobsHandler(req, res) {
       }
       return res.status(200).json({ data });
     }
-    
+
     // Require auth for POST/PATCH (write operations)
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
