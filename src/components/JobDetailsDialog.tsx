@@ -10,13 +10,14 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
-import { 
-  User, Phone, Car, Calendar, CheckCircle2, Circle, 
+import {
+  User, Phone, Car, Calendar, CheckCircle2, Circle,
   Image as ImageIcon, FileText, Clock, Shield, X, Upload
 } from "lucide-react";
 import { cn } from "./ui/utils";
 import { useState, useEffect } from "react";
 import { toast } from "sonner@2.0.3";
+import { PhotoUploadDialog } from "./PhotoUploadDialog";
 
 interface JobDetailsDialogProps {
   job: Job | null;
@@ -26,14 +27,7 @@ interface JobDetailsDialogProps {
 
 const statusStages: StatusStage[] = [
   "Job Created",
-  "Estimate Prepared",
-  "Estimate Sent",
-  "Estimate Approved",
-  "Parts Ordered",
   "Work in Progress",
-  "Painting",
-  "Quality Check",
-  "Ready for Delivery",
   "Completed"
 ];
 
@@ -46,6 +40,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
   const [localLabour, setLocalLabour] = useState<string>(job?.labourAmt ? String(job.labourAmt) : "");
   const [localPart, setLocalPart] = useState<string>(job?.partAmt ? String(job.partAmt) : "");
   const [localBill, setLocalBill] = useState<string>(job?.billAmount ? String(job.billAmount) : "");
+  const [photoUploadOpen, setPhotoUploadOpen] = useState(false);
 
   // Keep local state in sync if job changes
   useEffect(() => {
@@ -125,8 +120,8 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
               <Badge className={cn(
                 "px-3 py-1",
                 job.status === "Service" ? "bg-blue-100 text-blue-800" :
-                job.status === "In-Progress" ? "bg-yellow-100 text-yellow-800" :
-                "bg-green-100 text-green-800"
+                  job.status === "In-Progress" ? "bg-yellow-100 text-yellow-800" :
+                    "bg-green-100 text-green-800"
               )}>
                 {job.status}
               </Badge>
@@ -145,7 +140,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
 
         <ScrollArea className="max-h-[calc(90vh-100px)]">
           <div className="px-6 pb-6 space-y-6">
-            
+
             {/* Customer & Vehicle Information */}
             <section>
               <h3 className="flex items-center gap-2 text-blue-900 mb-3">
@@ -325,7 +320,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
               {job.services && job.services.length > 0 ? (
                 <div className="space-y-3">
                   {job.services.map((service) => (
-                    <div 
+                    <div
                       key={service.id}
                       className="p-3 bg-gray-50 rounded-lg"
                     >
@@ -334,12 +329,12 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
                           <p className="text-sm text-gray-900">{service.name}</p>
                           <p className="text-xs text-gray-600 mt-1">{service.description}</p>
                         </div>
-                        <Badge 
+                        <Badge
                           className={cn(
                             "ml-2",
                             service.status === "Completed" ? "bg-green-100 text-green-800" :
-                            service.status === "In Progress" ? "bg-yellow-100 text-yellow-800" :
-                            "bg-blue-100 text-blue-800"
+                              service.status === "In Progress" ? "bg-yellow-100 text-yellow-800" :
+                                "bg-blue-100 text-blue-800"
                           )}
                         >
                           {service.status}
@@ -351,7 +346,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
                       </div>
                     </div>
                   ))}
-                  
+
                   {/* Total Estimated Bill */}
                   <div className="p-4 bg-blue-900 text-white rounded-lg">
                     <div className="flex items-center justify-between">
@@ -399,7 +394,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
                 <ImageIcon className="w-4 h-4" />
                 Before & After Images
               </h3>
-              
+
               {/* Before Images */}
               <div className="mb-4">
                 <Label className="text-sm text-gray-700 mb-2 block">Before Images</Label>
@@ -457,7 +452,12 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
               </div>
 
               {/* Upload Button */}
-              <Button variant="outline" size="sm" className="w-full mt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-3"
+                onClick={() => setPhotoUploadOpen(true)}
+              >
                 <Upload className="w-4 h-4 mr-2" />
                 Upload Photos
               </Button>
@@ -475,15 +475,15 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
                 {statusStages.map((stage, index) => {
                   const isCompleted = job.completedStages && job.completedStages.includes(stage);
                   const isCurrent = job.currentStage === stage;
-                  
+
                   return (
                     <div
                       key={stage}
                       onClick={() => handleStageClick(stage)}
                       className={cn(
                         "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all",
-                        isCurrent ? "bg-blue-50 border-2 border-blue-900" : 
-                        isCompleted ? "bg-green-50" : "bg-gray-50 hover:bg-gray-100"
+                        isCurrent ? "bg-blue-50 border-2 border-blue-900" :
+                          isCompleted ? "bg-green-50" : "bg-gray-50 hover:bg-gray-100"
                       )}
                     >
                       {isCompleted ? (
@@ -493,8 +493,8 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
                       )}
                       <span className={cn(
                         "text-sm",
-                        isCurrent ? "text-blue-900" : 
-                        isCompleted ? "text-gray-900" : "text-gray-500"
+                        isCurrent ? "text-blue-900" :
+                          isCompleted ? "text-gray-900" : "text-gray-500"
                       )}>
                         {stage}
                       </span>
@@ -515,7 +515,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
                 <FileText className="w-4 h-4" />
                 Notes & Follow-Up
               </h3>
-              
+
               <div className="space-y-4">
                 {/* Interest Status */}
                 <div>
@@ -542,7 +542,7 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
                     className="mt-1"
                     rows={3}
                   />
-                  <Button 
+                  <Button
                     onClick={handleAddNote}
                     disabled={!newNote.trim()}
                     className="mt-2 bg-blue-900 hover:bg-blue-800"
@@ -598,6 +598,13 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
           </div>
         </ScrollArea>
       </DialogContent>
+
+      {/* Photo Upload Dialog */}
+      <PhotoUploadDialog
+        open={photoUploadOpen}
+        onOpenChange={setPhotoUploadOpen}
+        job={job}
+      />
     </Dialog>
   );
 }

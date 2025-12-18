@@ -6,7 +6,7 @@ export type JobType = "Insurance" | "Cash" | "Warranty";
 export type JobStatus = "Service" | "In-Progress" | "Completed";
 export type InterestStatus = "Interested" | "Not Interested" | "Follow-Up Later";
 
-export type StatusStage = 
+export type StatusStage =
   | "Job Created"
   | "Estimate Prepared"
   | "Estimate Sent"
@@ -16,6 +16,7 @@ export type StatusStage =
   | "Painting"
   | "Quality Check"
   | "Ready for Delivery"
+  | "Submitted to Customer"
   | "Completed";
 
 export interface Photo {
@@ -59,7 +60,7 @@ export interface ActivityLog {
 export interface Job {
   id: string;
   jobCardNumber: string;
-  
+
   // Vehicle Information
   regNo: string;
   model: string;
@@ -68,33 +69,33 @@ export interface Job {
   fuelType: string;
   year: string;
   kmsDriven?: string;
-  
+
   // Customer Information
   customerName: string;
   customerMobile: string;
-  
+
   // Job Information
   jobType: JobType;
   advisor: string;
   technician?: string;
   estimatedCompletion?: Date;
   arrivalDate: Date;
-  
+
   // Insurance Information (only if jobType is Insurance)
   insuranceCompany?: string;
   claimNumber?: string;
   surveyorName?: string;
   approvedAmount?: number;
   surveySheetUrl?: string;
-  
+
   // Status and Timeline
   status: JobStatus;
   currentStage: StatusStage;
   completedStages: StatusStage[];
-  
+
   // Photos
   photos: Photo[];
-  
+
   // Notes and Follow-up
   notes: Note[];
   followUpDate?: Date;
@@ -109,7 +110,7 @@ export interface Job {
   partAmt?: number;
   billAmount?: number;
   profit?: number;
-  
+
   // Metadata
   createdAt: Date;
   updatedAt: Date;
@@ -201,6 +202,15 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
     r.partAmt = part;
     r.billAmount = bill;
     r.profit = profit;
+
+    // Ensure array fields are always arrays to prevent iteration errors
+    r.photos = Array.isArray(r.photos) ? r.photos : [];
+    r.notes = Array.isArray(r.notes) ? r.notes : [];
+    r.callLogs = Array.isArray(r.callLogs) ? r.callLogs : [];
+    r.services = Array.isArray(r.services) ? r.services : [];
+    r.activityLog = Array.isArray(r.activityLog) ? r.activityLog : [];
+    r.completedStages = Array.isArray(r.completedStages) ? r.completedStages : [];
+
     return r as Job;
   };
 
@@ -254,11 +264,11 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
   // Centralized helper to call the server /api/jobs endpoint and always attach Authorization if available.
   const forwardToJobsApi = async (method: 'GET' | 'POST' | 'PATCH', body: any) => {
     try {
-  const token = await getAccessToken();
-  // log presence of token for local debugging (never log token value)
-  console.debug('forwardToJobsApi tokenPresent=', !!token, 'method=', method);
-  const headers: any = { 'Content-Type': 'application/json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
+      const token = await getAccessToken();
+      // log presence of token for local debugging (never log token value)
+      console.debug('forwardToJobsApi tokenPresent=', !!token, 'method=', method);
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
       const opts: any = { method, headers };
       // Only include a body for non-GET requests
       if (method !== 'GET' && body !== undefined) opts.body = JSON.stringify(body);
@@ -284,8 +294,8 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
           console.error('❌ Failed to load jobs from API', resp.status, resp.statusText);
           return;
         }
-  const json = (await resp.json().catch(() => null)) as any;
-  const data = json?.data ?? null;
+        const json = (await resp.json().catch(() => null)) as any;
+        const data = json?.data ?? null;
         console.log(`✅ Loaded ${data?.length || 0} jobs from API`);
         if (!data) {
           setJobs([]);
@@ -316,7 +326,7 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       }
     };
 
-  loadJobs();
+    loadJobs();
     // load server-side metrics (today + summary) to prefer backend counts for dashboard
     const refreshMetrics = async () => {
       try {
@@ -334,6 +344,7 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
 
     refreshMetrics();
   }, []);
+
 
   const addJob = (job: Omit<Job, "id" | "createdAt" | "updatedAt" | "activityLog" | "completedStages" | "currentStage">) => {
     const jobNumber = `BS-2025-${String(jobs.length + 1).padStart(3, '0')}`;
@@ -406,10 +417,17 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
           const completedStages = job.completedStages.includes(stage)
             ? job.completedStages
             : [...job.completedStages, stage];
+
+          // Automatically set status to "Completed" when stage is "Submitted to Customer" or "Completed"
+          const newStatus = (stage === "Submitted to Customer" || stage === "Completed")
+            ? "Completed"
+            : job.status;
+
           return {
             ...job,
             currentStage: stage,
             completedStages,
+            status: newStatus,
             updatedAt: new Date()
           };
         }
@@ -423,10 +441,10 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       prev.map((job) =>
         job.id === jobId
           ? {
-              ...job,
-              photos: [...job.photos, { ...photo, id: Date.now().toString(), uploadedAt: new Date() }],
-              updatedAt: new Date()
-            }
+            ...job,
+            photos: [...job.photos, { ...photo, id: Date.now().toString(), uploadedAt: new Date() }],
+            updatedAt: new Date()
+          }
           : job
       )
     );
@@ -455,10 +473,10 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       prev.map((job) =>
         job.id === jobId
           ? {
-              ...job,
-              notes: [...job.notes, { id: Date.now().toString(), text, createdAt: new Date(), createdBy: user }],
-              updatedAt: new Date()
-            }
+            ...job,
+            notes: [...job.notes, { id: Date.now().toString(), text, createdAt: new Date(), createdBy: user }],
+            updatedAt: new Date()
+          }
           : job
       )
     );
@@ -486,10 +504,10 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       prev.map((job) =>
         job.id === jobId
           ? {
-              ...job,
-              callLogs: [...job.callLogs, { ...callLog, id: Date.now().toString() }],
-              updatedAt: new Date()
-            }
+            ...job,
+            callLogs: [...job.callLogs, { ...callLog, id: Date.now().toString() }],
+            updatedAt: new Date()
+          }
           : job
       )
     );
@@ -517,10 +535,10 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       prev.map((job) =>
         job.id === jobId
           ? {
-              ...job,
-              services: [...job.services, { ...service, id: Date.now().toString() }],
-              updatedAt: new Date()
-            }
+            ...job,
+            services: [...job.services, { ...service, id: Date.now().toString() }],
+            updatedAt: new Date()
+          }
           : job
       )
     );
@@ -548,10 +566,10 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       prev.map((job) =>
         job.id === jobId
           ? {
-              ...job,
-              activityLog: [...job.activityLog, { id: Date.now().toString(), action, timestamp: new Date(), user }],
-              updatedAt: new Date()
-            }
+            ...job,
+            activityLog: [...job.activityLog, { id: Date.now().toString(), action, timestamp: new Date(), user }],
+            updatedAt: new Date()
+          }
           : job
       )
     );
@@ -583,6 +601,12 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
   };
 
   const getJobsByStatus = (status: JobStatus) => {
+    if (status === "Completed") {
+      // Include jobs with status "Completed" OR currentStage "Submitted to Customer"
+      return jobs.filter((job) =>
+        job.status === "Completed" || job.currentStage === "Submitted to Customer"
+      );
+    }
     return jobs.filter((job) => job.status === status);
   };
 
@@ -621,7 +645,10 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       // prefer today's completed if that maps to caller needs; otherwise fallback
       return Number(metrics.today.completedCreatedToday);
     }
-    return jobs.filter((job) => job.status === "Completed").length;
+    // Include jobs with status "Completed" OR currentStage "Submitted to Customer"
+    return jobs.filter((job) =>
+      job.status === "Completed" || job.currentStage === "Submitted to Customer"
+    ).length;
   };
 
   const getApprovalPendingCount = () => {

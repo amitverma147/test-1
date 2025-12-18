@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Camera, Upload, X, Car, Image as ImageIcon } from "lucide-react";
-import { Job } from "./BodyshopDataContext";
+import { Job, useBodyshopData } from "./BodyshopDataContext";
 import { toast } from "sonner@2.0.3";
 
 interface PhotoUploadDialogProps {
@@ -13,22 +13,39 @@ interface PhotoUploadDialogProps {
   job: Job | null;
 }
 
+type PhotoCategory = "Front" | "Rear" | "Left" | "Right" | "Interior" | "Damage" | "Before" | "After";
+
 export function PhotoUploadDialog({ open, onOpenChange, job }: PhotoUploadDialogProps) {
-  const [photoType, setPhotoType] = useState("before");
-  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
+  const { addPhoto } = useBodyshopData();
+  const [photoType, setPhotoType] = useState<string>("before");
+  const [uploadedPhotos, setUploadedPhotos] = useState<{ url: string; file: File }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Map photo type to category
+  const getCategoryFromType = (type: string): PhotoCategory => {
+    const mapping: Record<string, PhotoCategory> = {
+      "before": "Before",
+      "after": "After",
+      "damage": "Damage",
+      "front": "Front",
+      "rear": "Rear",
+      "left": "Left",
+      "right": "Right",
+      "interior": "Interior"
+    };
+    return mapping[type] || "Before";
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      // Simulate file upload
-      const newPhotos = Array.from(files).map((file) => URL.createObjectURL(file));
+      const newPhotos = Array.from(files).map((file) => ({
+        url: URL.createObjectURL(file),
+        file
+      }));
       setUploadedPhotos([...uploadedPhotos, ...newPhotos]);
-      toast.success(`${files.length} photo(s) uploaded`);
+      toast.success(`${files.length} photo(s) selected`);
     }
-  };
-
-  const handleTakePhoto = () => {
-    toast.success("Opening camera...");
   };
 
   const handleRemovePhoto = (index: number) => {
@@ -37,14 +54,45 @@ export function PhotoUploadDialog({ open, onOpenChange, job }: PhotoUploadDialog
     toast.success("Photo removed");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (uploadedPhotos.length === 0) {
       toast.error("Please upload at least one photo");
       return;
     }
-    toast.success(`${uploadedPhotos.length} photo(s) saved to job card ${job?.jobCardNumber}`);
-    setUploadedPhotos([]);
-    onOpenChange(false);
+
+    if (!job) {
+      toast.error("No job selected");
+      return;
+    }
+
+    try {
+      const category = getCategoryFromType(photoType);
+
+      // Convert each file to base64 and save
+      for (const photo of uploadedPhotos) {
+        const reader = new FileReader();
+        await new Promise<void>((resolve, reject) => {
+          reader.onload = () => {
+            const base64Url = reader.result as string;
+            addPhoto(job.id, { url: base64Url, category });
+            resolve();
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(photo.file);
+        });
+      }
+
+      toast.success(`${uploadedPhotos.length} photo(s) saved to ${category} category`);
+      setUploadedPhotos([]);
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error saving photos:", error);
+      toast.error("Failed to save photos");
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
   };
 
   if (!job) return null;
@@ -68,7 +116,7 @@ export function PhotoUploadDialog({ open, onOpenChange, job }: PhotoUploadDialog
               </div>
               <div>
                 <p className="font-semibold">{job.jobCardNumber}</p>
-                <p className="text-sm text-gray-600">{job.vehicleModel} • {job.vehicleRegNo}</p>
+                <p className="text-sm text-gray-600">{job.model} • {job.regNo}</p>
                 <p className="text-xs text-gray-500">Customer: {job.customerName}</p>
               </div>
             </div>
@@ -76,31 +124,43 @@ export function PhotoUploadDialog({ open, onOpenChange, job }: PhotoUploadDialog
 
           {/* Photo Type Selection */}
           <div className="space-y-2">
-            <Label>Photo Type</Label>
+            <Label>Photo Category</Label>
             <Select value={photoType} onValueChange={setPhotoType}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="before">Before Work</SelectItem>
-                <SelectItem value="during">Work in Progress</SelectItem>
                 <SelectItem value="after">After Work</SelectItem>
                 <SelectItem value="damage">Damage Documentation</SelectItem>
-                <SelectItem value="parts">Parts Used</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="front">Front View</SelectItem>
+                <SelectItem value="rear">Rear View</SelectItem>
+                <SelectItem value="left">Left Side</SelectItem>
+                <SelectItem value="right">Right Side</SelectItem>
+                <SelectItem value="interior">Interior</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Upload Options */}
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+
+          {/* Upload Button */}
           <div className="w-full">
             <Button
               variant="outline"
               className="w-full h-24 flex-col gap-2"
-              onClick={handleTakePhoto}
+              onClick={handleUploadClick}
             >
-              <Camera className="w-8 h-8 text-blue-600" />
-              <span>Take Photo</span>
+              <Upload className="w-8 h-8 text-blue-600" />
+              <span>Choose Images from Device</span>
             </Button>
           </div>
 
@@ -108,9 +168,9 @@ export function PhotoUploadDialog({ open, onOpenChange, job }: PhotoUploadDialog
           {uploadedPhotos.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Uploaded Photos ({uploadedPhotos.length})</Label>
+                <Label>Selected Photos ({uploadedPhotos.length})</Label>
                 <span className="text-xs text-gray-500">
-                  Type: <span className="font-semibold">{photoType}</span>
+                  Category: <span className="font-semibold">{getCategoryFromType(photoType)}</span>
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-3">
@@ -118,7 +178,7 @@ export function PhotoUploadDialog({ open, onOpenChange, job }: PhotoUploadDialog
                   <div key={index} className="relative group">
                     <div className="aspect-square rounded-xl overflow-hidden border-2 border-gray-200">
                       <img
-                        src={photo}
+                        src={photo.url}
                         alt={`Upload ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
@@ -139,8 +199,8 @@ export function PhotoUploadDialog({ open, onOpenChange, job }: PhotoUploadDialog
           {uploadedPhotos.length === 0 && (
             <div className="py-12 text-center border-2 border-dashed border-gray-200 rounded-xl">
               <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-sm text-gray-600">No photos uploaded yet</p>
-              <p className="text-xs text-gray-500">Take a photo or upload from gallery</p>
+              <p className="text-sm text-gray-600">No photos selected yet</p>
+              <p className="text-xs text-gray-500">Click the button above to choose images</p>
             </div>
           )}
 
@@ -161,7 +221,7 @@ export function PhotoUploadDialog({ open, onOpenChange, job }: PhotoUploadDialog
               onClick={handleSave}
               disabled={uploadedPhotos.length === 0}
             >
-              Save Photos
+              Save {uploadedPhotos.length} Photo{uploadedPhotos.length !== 1 ? 's' : ''}
             </Button>
           </div>
         </div>

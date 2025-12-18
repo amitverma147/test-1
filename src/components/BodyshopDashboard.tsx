@@ -2,9 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useBodyshopData } from "./BodyshopDataContext";
-import { 
-  Wrench, Clock, CheckCircle2, AlertCircle, 
-  Bell, Search, TrendingUp 
+import {
+  Wrench, Clock, CheckCircle2, AlertCircle,
+  Bell, Search, TrendingUp
 } from "lucide-react";
 import { JobCard } from "./JobCard";
 import { JobDetailsDialog } from "./JobDetailsDialog";
@@ -17,7 +17,7 @@ interface BodyshopDashboardProps {
 }
 
 export function BodyshopDashboard({ onNewJobClick }: BodyshopDashboardProps) {
-  const { 
+  const {
     jobs,
     searchJobs,
     getTodayJobsCount,
@@ -40,7 +40,7 @@ export function BodyshopDashboard({ onNewJobClick }: BodyshopDashboardProps) {
   const stats = [
     {
       title: "Total Jobs",
-      value: getTodayJobsCount(),
+      value: jobs.length,
       icon: Wrench,
       color: "text-blue-600",
       bg: "bg-blue-50"
@@ -128,7 +128,7 @@ export function BodyshopDashboard({ onNewJobClick }: BodyshopDashboardProps) {
           </CardHeader>
           <CardContent className="space-y-2">
             {followUpReminders.slice(0, 3).map((job) => (
-              <div 
+              <div
                 key={job.id}
                 onClick={() => setSelectedJob(job)}
                 className="p-3 bg-white rounded-lg cursor-pointer hover:shadow-md transition-shadow"
