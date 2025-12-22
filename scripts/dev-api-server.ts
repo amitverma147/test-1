@@ -167,7 +167,7 @@ import bodyParser from 'body-parser';
     return imagekitMetadataHandler(req, res);
   });
 
-  const port = Number(process.env.DEV_API_PORT || 3001);
+  const port = Number(process.env.DEV_API_PORT || 3000);
   const server = app.listen(port, () => {
     console.log(`\n✅ Dev API server listening on http://localhost:${port}`);
     console.log(`\n📋 Available endpoints:`);
