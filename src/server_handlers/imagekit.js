@@ -1,4 +1,5 @@
 const ImageKit = require('imagekit');
+// Force rebuild - using CommonJS syntax for Vercel compatibility
 
 // Initialize ImageKit with environment variables
 const imagekit = new ImageKit({
