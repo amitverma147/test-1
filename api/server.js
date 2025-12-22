@@ -10,8 +10,10 @@ const uploadCsvHandler = require('../src/server_handlers/upload_csv_real');
 let imagekitHandlers;
 try {
   imagekitHandlers = require('../src/server_handlers/imagekit');
+  console.log('✅ ImageKit handlers loaded successfully');
 } catch (err) {
-  console.warn('ImageKit handlers not available:', err.message);
+  console.error('❌ ImageKit handlers not available:', err.message);
+  console.error('Full error:', err);
   imagekitHandlers = null;
 }
 
