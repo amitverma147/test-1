@@ -72,10 +72,76 @@ function getImageKitUrl(path, transformations) {
     return `${urlEndpoint}/${path}`;
 }
 
+/**
+ * HTTP Handler: Get ImageKit authentication parameters
+ */
+function handleImageKitAuth(req, res) {
+    try {
+        const authParams = getImageKitAuthParams();
+        res.status(200).json(authParams);
+    } catch (error) {
+        console.error('Error in handleImageKitAuth:', error);
+        res.status(500).json({ error: 'Failed to generate auth parameters' });
+    }
+}
+
+/**
+ * HTTP Handler: Upload file to ImageKit
+ */
+async function handleImageKitUpload(req, res) {
+    try {
+        const { file, fileName, folder, tags, useUniqueFileName } = req.body;
+        const result = await uploadToImageKit({
+            file,
+            fileName,
+            folder,
+            tags,
+            useUniqueFileName
+        });
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Error in handleImageKitUpload:', error);
+        res.status(500).json({ error: 'Failed to upload file' });
+    }
+}
+
+/**
+ * HTTP Handler: Delete file from ImageKit
+ */
+async function handleImageKitDelete(req, res) {
+    try {
+        const { fileId } = req.body;
+        const result = await deleteFromImageKit(fileId);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Error in handleImageKitDelete:', error);
+        res.status(500).json({ error: 'Failed to delete file' });
+    }
+}
+
+/**
+ * HTTP Handler: Save image metadata (placeholder for future use)
+ */
+async function handleSaveImageMetadata(req, res) {
+    try {
+        // This can be used to save additional metadata to your database
+        const { fileId, metadata } = req.body;
+        // Implement your metadata saving logic here
+        res.status(200).json({ success: true, message: 'Metadata saved' });
+    } catch (error) {
+        console.error('Error in handleSaveImageMetadata:', error);
+        res.status(500).json({ error: 'Failed to save metadata' });
+    }
+}
+
 module.exports = {
     imagekit,
     getImageKitAuthParams,
     uploadToImageKit,
     deleteFromImageKit,
-    getImageKitUrl
+    getImageKitUrl,
+    handleImageKitAuth,
+    handleImageKitUpload,
+    handleImageKitDelete,
+    handleSaveImageMetadata
 };
