@@ -74,7 +74,7 @@ import bodyParser from 'body-parser';
   let imagekitMetadataHandler: any;
 
   try {
-    const imagekitModule: any = await import('../src/Pages/api_imagekit.js');
+    const imagekitModule: any = await import('../src/server_handlers/imagekit.js');
     imagekitAuthHandler = imagekitModule.handleImageKitAuth;
     imagekitUploadHandler = imagekitModule.handleImageKitUpload;
     imagekitDeleteHandler = imagekitModule.handleImageKitDelete;
@@ -89,21 +89,21 @@ import bodyParser from 'body-parser';
   }
 
   const app = express();
-  
+
   // Add CORS middleware for development
   app.use((req: any, res: any, next: any) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    
+
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
     }
-    
+
     next();
   });
-  
+
   app.use(bodyParser.json({ limit: '50mb' }));
 
   app.post('/api/upload-csv', (req: any, res: any) => {
