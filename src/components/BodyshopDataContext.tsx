@@ -22,8 +22,14 @@ export type StatusStage =
 export interface Photo {
   id: string;
   url: string;
+  fileId?: string; // ImageKit file ID for deletion
+  thumbnailUrl?: string; // ImageKit thumbnail URL
   category: "Front" | "Rear" | "Left" | "Right" | "Interior" | "Damage" | "Before" | "After";
   uploadedAt: Date;
+  uploadedBy?: string; // User who uploaded the photo
+  caption?: string; // Optional caption/description
+  size?: number; // File size in bytes
+  name?: string; // Original file name
 }
 
 export interface Note {
@@ -204,12 +210,52 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
     r.profit = profit;
 
     // Ensure array fields are always arrays to prevent iteration errors
-    r.photos = Array.isArray(r.photos) ? r.photos : [];
     r.notes = Array.isArray(r.notes) ? r.notes : [];
     r.callLogs = Array.isArray(r.callLogs) ? r.callLogs : [];
     r.services = Array.isArray(r.services) ? r.services : [];
     r.activityLog = Array.isArray(r.activityLog) ? r.activityLog : [];
     r.completedStages = Array.isArray(r.completedStages) ? r.completedStages : [];
+
+    // Reconstruct photos array from before_images and after_images (database schema)
+    const beforeImages = Array.isArray(r.before_images) ? r.before_images : (Array.isArray(r.beforeImages) ? r.beforeImages : []);
+    const afterImages = Array.isArray(r.after_images) ? r.after_images : (Array.isArray(r.afterImages) ? r.afterImages : []);
+
+    console.log('🖼️ parseJobRow - Processing images for job:', r.id, {
+      before_images_count: beforeImages.length,
+      after_images_count: afterImages.length,
+      before_images_sample: beforeImages[0],
+      after_images_sample: afterImages[0]
+    });
+
+    // Map database image format to frontend Photo format
+    const beforePhotos = beforeImages.map((img: any, idx: number) => ({
+      id: img.id || `before_${idx}_${Date.now()}`,
+      url: img.url || img,
+      fileId: img.fileId || img.file_id,
+      thumbnailUrl: img.thumbnailUrl || img.thumbnail_url,
+      category: (img.category || 'Before') as Photo['category'],
+      uploadedAt: img.uploadedAt || img.uploaded_at || new Date(),
+      uploadedBy: img.uploadedBy || img.uploaded_by,
+      caption: img.caption,
+      size: img.size,
+      name: img.name
+    }));
+
+    const afterPhotos = afterImages.map((img: any, idx: number) => ({
+      id: img.id || `after_${idx}_${Date.now()}`,
+      url: img.url || img,
+      fileId: img.fileId || img.file_id,
+      thumbnailUrl: img.thumbnailUrl || img.thumbnail_url,
+      category: (img.category || 'After') as Photo['category'],
+      uploadedAt: img.uploadedAt || img.uploaded_at || new Date(),
+      uploadedBy: img.uploadedBy || img.uploaded_by,
+      caption: img.caption,
+      size: img.size,
+      name: img.name
+    }));
+
+    r.photos = [...beforePhotos, ...afterPhotos];
+    console.log('📸 parseJobRow - Final photos array for job:', r.id, 'count:', r.photos.length, r.photos);
 
     return r as Job;
   };
@@ -266,7 +312,17 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
     try {
       const token = await getAccessToken();
       // log presence of token for local debugging (never log token value)
-      console.debug('forwardToJobsApi tokenPresent=', !!token, 'method=', method);
+      console.log('🔑 forwardToJobsApi:', {
+        method,
+        tokenPresent: !!token,
+        tokenLength: token?.length || 0,
+        hasBody: !!body
+      });
+
+      if (!token) {
+        console.error('❌ No access token found! User may not be authenticated.');
+      }
+
       const headers: any = { 'Content-Type': 'application/json' };
       if (token) headers.Authorization = `Bearer ${token}`;
       const opts: any = { method, headers };
@@ -275,7 +331,7 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       const resp = await fetch('/api/jobs', opts);
       if (!resp.ok) {
         const text = await resp.text().catch(() => null);
-        console.warn('/api/jobs responded with', resp.status, text);
+        console.error('❌ /api/jobs responded with', resp.status, text);
       }
       return resp;
     } catch (err) {
@@ -284,48 +340,49 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  useEffect(() => {
-    const loadJobs = async () => {
-      try {
-        console.log('🔄 Loading jobs from API...');
-        // Prefer server-side API so server can verify the user and apply any server rules.
-        const resp = await forwardToJobsApi('GET', undefined);
-        if (!resp.ok) {
-          console.error('❌ Failed to load jobs from API', resp.status, resp.statusText);
-          return;
-        }
-        const json = (await resp.json().catch(() => null)) as any;
-        const data = json?.data ?? null;
-        console.log(`✅ Loaded ${data?.length || 0} jobs from API`);
-        if (!data) {
-          setJobs([]);
-          return;
-        }
-        // Normalize DB snake_case keys to camelCase, then map rows to Job objects
-        const snakeToCamel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
-        const normalizeKeys = (obj: any): any => {
-          if (obj === null || obj === undefined) return obj;
-          if (Array.isArray(obj)) return obj.map(normalizeKeys);
-          if (typeof obj !== 'object') return obj;
-          const out: any = {};
-          for (const k of Object.keys(obj)) {
-            const v = obj[k];
-            const nk = snakeToCamel(k);
-            out[nk] = normalizeKeys(v);
-          }
-          return out;
-        };
-
-        const normalized = data.map((row: any) => normalizeKeys(row));
-        // Map rows to Job objects, handling `payload` if present and converting dates
-        const parsed: Job[] = normalized.map(parseJobRow);
-        console.log('📊 Parsed jobs:', parsed.length);
-        setJobs(parsed);
-      } catch (err) {
-        console.error("❌ Supabase loadJobs error:", err);
+  // Extract loadJobs as a reusable function for refreshing job data
+  const loadJobs = async () => {
+    try {
+      console.log('🔄 Loading jobs from API...');
+      // Prefer server-side API so server can verify the user and apply any server rules.
+      const resp = await forwardToJobsApi('GET', undefined);
+      if (!resp.ok) {
+        console.error('❌ Failed to load jobs from API', resp.status, resp.statusText);
+        return;
       }
-    };
+      const json = (await resp.json().catch(() => null)) as any;
+      const data = json?.data ?? null;
+      console.log(`✅ Loaded ${data?.length || 0} jobs from API`);
+      if (!data) {
+        setJobs([]);
+        return;
+      }
+      // Normalize DB snake_case keys to camelCase, then map rows to Job objects
+      const snakeToCamel = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+      const normalizeKeys = (obj: any): any => {
+        if (obj === null || obj === undefined) return obj;
+        if (Array.isArray(obj)) return obj.map(normalizeKeys);
+        if (typeof obj !== 'object') return obj;
+        const out: any = {};
+        for (const k of Object.keys(obj)) {
+          const v = obj[k];
+          const nk = snakeToCamel(k);
+          out[nk] = normalizeKeys(v);
+        }
+        return out;
+      };
 
+      const normalized = data.map((row: any) => normalizeKeys(row));
+      // Map rows to Job objects, handling `payload` if present and converting dates
+      const parsed: Job[] = normalized.map(parseJobRow);
+      console.log('📊 Parsed jobs:', parsed.length);
+      setJobs(parsed);
+    } catch (err) {
+      console.error("❌ Supabase loadJobs error:", err);
+    }
+  };
+
+  useEffect(() => {
     loadJobs();
     // load server-side metrics (today + summary) to prefer backend counts for dashboard
     const refreshMetrics = async () => {
@@ -454,14 +511,65 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
       try {
         const job = jobs.find((j) => j.id === jobId);
         if (!job) return;
+        const newPhoto = { ...photo, id: Date.now().toString(), uploadedAt: new Date() };
+        const updatedPhotos = [...job.photos, newPhoto];
+
+        // Split photos into before_images and after_images for database
+        const beforeCategories = ['Before', 'Front', 'Rear', 'Left', 'Right', 'Interior', 'Damage'];
+        const before_images = updatedPhotos
+          .filter(p => beforeCategories.includes(p.category))
+          .map(p => ({
+            id: p.id,
+            url: p.url,
+            fileId: p.fileId,
+            thumbnailUrl: p.thumbnailUrl,
+            category: p.category,
+            uploadedAt: p.uploadedAt,
+            uploadedBy: p.uploadedBy,
+            caption: p.caption,
+            size: p.size,
+            name: p.name
+          }));
+
+        const after_images = updatedPhotos
+          .filter(p => p.category === 'After')
+          .map(p => ({
+            id: p.id,
+            url: p.url,
+            fileId: p.fileId,
+            thumbnailUrl: p.thumbnailUrl,
+            category: p.category,
+            uploadedAt: p.uploadedAt,
+            uploadedBy: p.uploadedBy,
+            caption: p.caption,
+            size: p.size,
+            name: p.name
+          }));
+
         const updatedJob = {
           ...job,
-          photos: [...job.photos, { ...photo, id: Date.now().toString(), uploadedAt: new Date() }],
+          photos: updatedPhotos,
+          before_images,
+          after_images,
           updatedAt: new Date()
         };
+
         computeProfitForJob(updatedJob);
         const payload = serialize(updatedJob);
+        console.log('📸 Saving photo to database:', {
+          jobId,
+          before_images: before_images.length,
+          after_images: after_images.length,
+          before_urls: before_images.map(i => i.url),
+          after_urls: after_images.map(i => i.url),
+          payloadHasBeforeImages: !!payload.before_images,
+          payloadHasAfterImages: !!payload.after_images
+        });
         await forwardToJobsApi('POST', { job: payload });
+
+        // Refresh the job data from the API to sync UI with database
+        console.log('🔄 Refreshing job data from API...');
+        await loadJobs();
       } catch (err) {
         console.error("Supabase addPhoto error:", err);
       }

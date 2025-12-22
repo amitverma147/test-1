@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Camera, Upload, X, Car, Image as ImageIcon } from "lucide-react";
 import { Job, useBodyshopData } from "./BodyshopDataContext";
 import { toast } from "sonner@2.0.3";
+import { uploadToImageKit } from "../utils/imagekit-client";
 
 interface PhotoUploadDialogProps {
   open: boolean;
@@ -67,27 +68,88 @@ export function PhotoUploadDialog({ open, onOpenChange, job }: PhotoUploadDialog
 
     try {
       const category = getCategoryFromType(photoType);
+      const uploadedImages = [];
+      let failedUploads = 0;
 
-      // Convert each file to base64 and save
-      for (const photo of uploadedPhotos) {
-        const reader = new FileReader();
-        await new Promise<void>((resolve, reject) => {
-          reader.onload = () => {
-            const base64Url = reader.result as string;
-            addPhoto(job.id, { url: base64Url, category });
-            resolve();
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(photo.file);
-        });
+      console.log(`📸 Starting upload of ${uploadedPhotos.length} photo(s) for job ${job.id}`);
+
+      // Upload each file to ImageKit
+      for (let i = 0; i < uploadedPhotos.length; i++) {
+        const photo = uploadedPhotos[i];
+        const toastId = toast.loading(`Uploading ${i + 1}/${uploadedPhotos.length}: ${photo.file.name}...`);
+
+        try {
+          console.log(`🚀 Uploading file ${i + 1}/${uploadedPhotos.length}:`, {
+            fileName: photo.file.name,
+            fileSize: `${(photo.file.size / 1024 / 1024).toFixed(2)} MB`,
+            fileType: photo.file.type
+          });
+
+          const result = await uploadToImageKit({
+            file: photo.file,
+            fileName: photo.file.name,
+            folder: `/jobs/${job.id}/${category.toLowerCase()}`,
+            tags: [job.id, category, job.jobCardNumber],
+            onProgress: (e: ProgressEvent) => {
+              if (e.lengthComputable) {
+                const progress = Math.round((e.loaded * 100) / e.total);
+                toast.loading(`Uploading ${i + 1}/${uploadedPhotos.length}: ${progress}%`, { id: toastId });
+              }
+            }
+          });
+
+          console.log(`✅ Upload successful:`, {
+            fileName: photo.file.name,
+            fileId: result.fileId,
+            url: result.url,
+            thumbnailUrl: result.thumbnailUrl
+          });
+
+          // Add photo to job context with all metadata
+          addPhoto(job.id, {
+            url: result.url,
+            category,
+            fileId: result.fileId,
+            thumbnailUrl: result.thumbnailUrl,
+            name: result.name,
+            size: result.size
+          });
+
+          uploadedImages.push({
+            id: Date.now().toString() + Math.random(),
+            url: result.url,
+            fileId: result.fileId,
+            thumbnailUrl: result.thumbnailUrl,
+            uploadedAt: new Date().toISOString(),
+            name: result.name,
+            size: result.size,
+            category
+          });
+
+          toast.success(`Uploaded ${photo.file.name}`, { id: toastId });
+        } catch (error: any) {
+          failedUploads++;
+          const errorMessage = error.message || 'Unknown error';
+          console.error(`❌ Error uploading ${photo.file.name}:`, errorMessage);
+          toast.error(`Failed to upload ${photo.file.name}: ${errorMessage}`, { id: toastId });
+        }
       }
 
-      toast.success(`${uploadedPhotos.length} photo(s) saved to ${category} category`);
+      // Show summary
+      if (uploadedImages.length > 0) {
+        const successMessage = failedUploads > 0 
+          ? `${uploadedImages.length} photo(s) uploaded, ${failedUploads} failed`
+          : `${uploadedImages.length} photo(s) uploaded successfully to ${category} category`;
+        toast.success(successMessage);
+      } else {
+        toast.error("All uploads failed. Please check your ImageKit configuration and try again.");
+      }
+
       setUploadedPhotos([]);
       onOpenChange(false);
-    } catch (error) {
-      console.error("Error saving photos:", error);
-      toast.error("Failed to save photos");
+    } catch (error: any) {
+      console.error("❌ Error saving photos:", error);
+      toast.error(`Failed to save photos: ${error.message || 'Unknown error'}`);
     }
   };
 

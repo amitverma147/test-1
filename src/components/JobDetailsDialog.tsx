@@ -18,6 +18,7 @@ import { cn } from "./ui/utils";
 import { useState, useEffect } from "react";
 import { toast } from "sonner@2.0.3";
 import { PhotoUploadDialog } from "./PhotoUploadDialog";
+import { ImageGallery } from "./ImageGallery";
 
 interface JobDetailsDialogProps {
   job: Job | null;
@@ -41,6 +42,9 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
   const [localPart, setLocalPart] = useState<string>(job?.partAmt ? String(job.partAmt) : "");
   const [localBill, setLocalBill] = useState<string>(job?.billAmount ? String(job.billAmount) : "");
   const [photoUploadOpen, setPhotoUploadOpen] = useState(false);
+
+  // Log photos for debugging
+  console.log('📷 Job photos:', job?.photos?.length || 0, 'photos', job?.photos);
 
   // Keep local state in sync if job changes
   useEffect(() => {
@@ -398,57 +402,35 @@ export function JobDetailsDialog({ job, open, onClose }: JobDetailsDialogProps) 
               {/* Before Images */}
               <div className="mb-4">
                 <Label className="text-sm text-gray-700 mb-2 block">Before Images</Label>
-                {job.photos && job.photos.filter(p => p.category === "Before" || ["Front", "Rear", "Left", "Right", "Damage"].includes(p.category)).length > 0 ? (
-                  <div className="grid grid-cols-3 gap-3">
-                    {job.photos
-                      .filter(p => p.category === "Before" || ["Front", "Rear", "Left", "Right", "Damage"].includes(p.category))
-                      .map((photo) => (
-                        <div key={photo.id} className="relative aspect-square">
-                          <img
-                            src={photo.url}
-                            alt={photo.category}
-                            className="w-full h-full object-cover rounded-lg border-2 border-gray-200"
-                          />
-                          <Badge className="absolute top-2 left-2 text-xs bg-black/60 text-white">
-                            {photo.category}
-                          </Badge>
-                        </div>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                    <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-xs text-gray-500">No before images</p>
-                  </div>
-                )}
+                <ImageGallery
+                  images={job.photos
+                    .filter(p => p.category === "Before" || ["Front", "Rear", "Left", "Right", "Damage"].includes(p.category))
+                    .map(p => ({
+                      id: p.id,
+                      url: p.url,
+                      thumbnailUrl: p.thumbnailUrl,
+                      caption: p.caption,
+                      category: p.category
+                    }))}
+                  category="before"
+                />
               </div>
 
               {/* After Images */}
               <div>
                 <Label className="text-sm text-gray-700 mb-2 block">After Images</Label>
-                {job.photos && job.photos.filter(p => p.category === "After").length > 0 ? (
-                  <div className="grid grid-cols-3 gap-3">
-                    {job.photos
-                      .filter(p => p.category === "After")
-                      .map((photo) => (
-                        <div key={photo.id} className="relative aspect-square">
-                          <img
-                            src={photo.url}
-                            alt={photo.category}
-                            className="w-full h-full object-cover rounded-lg border-2 border-green-500"
-                          />
-                          <Badge className="absolute top-2 left-2 text-xs bg-green-600 text-white">
-                            After
-                          </Badge>
-                        </div>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                    <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-xs text-gray-500">No after images</p>
-                  </div>
-                )}
+                <ImageGallery
+                  images={job.photos
+                    .filter(p => p.category === "After")
+                    .map(p => ({
+                      id: p.id,
+                      url: p.url,
+                      thumbnailUrl: p.thumbnailUrl,
+                      caption: p.caption,
+                      category: p.category
+                    }))}
+                  category="after"
+                />
               </div>
 
               {/* Upload Button */}

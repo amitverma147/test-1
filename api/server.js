@@ -6,6 +6,15 @@ const inventoryHandler = require('../src/server_handlers/inventory');
 const quickMessagesHandler = require('../src/server_handlers/quick_messages');
 const uploadCsvHandler = require('../src/server_handlers/upload_csv_real');
 
+// ImageKit handlers
+let imagekitHandlers;
+try {
+  imagekitHandlers = require('../src/Pages/api_imagekit');
+} catch (err) {
+  console.warn('ImageKit handlers not available:', err.message);
+  imagekitHandlers = null;
+}
+
 function sendNotFound(res) {
   res.statusCode = 404;
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -27,6 +36,22 @@ module.exports = (req, res) => {
     if (path === '/api/inventory') return inventoryHandler(req, res);
     if (path === '/api/quick_messages') return quickMessagesHandler(req, res);
     if (path === '/api/upload-csv' || path === '/api/upload-csv.js') return uploadCsvHandler(req, res);
+
+    // ImageKit routes
+    if (imagekitHandlers) {
+      if (path === '/api/imagekit-auth' && req.method === 'GET') {
+        return imagekitHandlers.handleImageKitAuth(req, res);
+      }
+      if (path === '/api/imagekit-upload' && req.method === 'POST') {
+        return imagekitHandlers.handleImageKitUpload(req, res);
+      }
+      if (path === '/api/imagekit-delete' && req.method === 'DELETE') {
+        return imagekitHandlers.handleImageKitDelete(req, res);
+      }
+      if (path === '/api/imagekit-save-metadata' && req.method === 'POST') {
+        return imagekitHandlers.handleSaveImageMetadata(req, res);
+      }
+    }
 
     return sendNotFound(res);
   } catch (err) {

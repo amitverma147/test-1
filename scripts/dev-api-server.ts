@@ -67,7 +67,43 @@ import bodyParser from 'body-parser';
     healthHandler = (req: any, res: any) => res.status(200).json({ ok: true, message: 'Health check endpoint not configured' });
   }
 
+  // Import ImageKit handlers
+  let imagekitAuthHandler: any;
+  let imagekitUploadHandler: any;
+  let imagekitDeleteHandler: any;
+  let imagekitMetadataHandler: any;
+
+  try {
+    const imagekitModule: any = await import('../src/Pages/api_imagekit.js');
+    imagekitAuthHandler = imagekitModule.handleImageKitAuth;
+    imagekitUploadHandler = imagekitModule.handleImageKitUpload;
+    imagekitDeleteHandler = imagekitModule.handleImageKitDelete;
+    imagekitMetadataHandler = imagekitModule.handleSaveImageMetadata;
+  } catch (err) {
+    console.warn('ImageKit handlers not found, endpoints will not be available');
+    const notImplemented = (req: any, res: any) => res.status(501).json({ error: 'ImageKit not configured' });
+    imagekitAuthHandler = notImplemented;
+    imagekitUploadHandler = notImplemented;
+    imagekitDeleteHandler = notImplemented;
+    imagekitMetadataHandler = notImplemented;
+  }
+
   const app = express();
+  
+  // Add CORS middleware for development
+  app.use((req: any, res: any, next: any) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    
+    next();
+  });
+  
   app.use(bodyParser.json({ limit: '50mb' }));
 
   app.post('/api/upload-csv', (req: any, res: any) => {
@@ -114,6 +150,23 @@ import bodyParser from 'body-parser';
     return healthHandler(req, res);
   });
 
+  // ImageKit endpoints
+  app.get('/api/imagekit-auth', (req: any, res: any) => {
+    return imagekitAuthHandler(req, res);
+  });
+
+  app.post('/api/imagekit-upload', (req: any, res: any) => {
+    return imagekitUploadHandler(req, res);
+  });
+
+  app.delete('/api/imagekit-delete', (req: any, res: any) => {
+    return imagekitDeleteHandler(req, res);
+  });
+
+  app.post('/api/imagekit-save-metadata', (req: any, res: any) => {
+    return imagekitMetadataHandler(req, res);
+  });
+
   const port = Number(process.env.DEV_API_PORT || 3001);
   const server = app.listen(port, () => {
     console.log(`\n✅ Dev API server listening on http://localhost:${port}`);
@@ -127,6 +180,10 @@ import bodyParser from 'body-parser';
     console.log(`   POST /api/inventory`);
     console.log(`   GET  /api/quick_messages`);
     console.log(`   POST /api/quick_messages`);
+    console.log(`   GET  /api/imagekit-auth`);
+    console.log(`   POST /api/imagekit-upload`);
+    console.log(`   DELETE /api/imagekit-delete`);
+    console.log(`   POST /api/imagekit-save-metadata`);
     console.log(`\n⚠️  Note: Environment variables loaded from .env.local`);
     console.log(`   Make sure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set\n`);
   }).on('error', (err: any) => {

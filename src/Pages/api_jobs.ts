@@ -76,13 +76,44 @@ export default async function handler(req: any, res: any) {
         updatedAt: new Date().toISOString(),
       };
 
-  // transform keys to snake_case for DB columns
-    // Store snake-cased top-level columns where possible, and also persist
-    // the entire job object into a `payload` jsonb column so no fields are lost.
-    const payloadSnake = toSnakeCaseKeyMap(payload);
-    // keep full job for compatibility with UI which looks for `row.payload`
-    payloadSnake.payload = payload;
-  const { error } = await supabaseAdmin.from('jobs').upsert([payloadSnake], { returning: 'minimal' });
+      // Debug log the incoming job object
+      console.log('📥 API received job:', {
+        id: job.id,
+        hasBeforeImages: !!job.before_images,
+        hasAfterImages: !!job.after_images,
+        beforeImagesCount: job.before_images?.length || 0,
+        afterImagesCount: job.after_images?.length || 0,
+        beforeUrls: job.before_images?.map((i: any) => i.url) || [],
+        afterUrls: job.after_images?.map((i: any) => i.url) || []
+      });
+      
+      // Transform keys to snake_case for DB columns
+      // Store snake-cased top-level columns where possible, and also persist
+      // the entire job object into a `payload` jsonb column so no fields are lost.
+      const payloadSnake = toSnakeCaseKeyMap(payload);
+      
+      // CRITICAL: Explicitly preserve before_images and after_images from the original payload
+      // These might be lost during snake_case conversion
+      payloadSnake.before_images = payload.before_images || payload.beforeImages || [];
+      payloadSnake.after_images = payload.after_images || payload.afterImages || [];
+      
+      // Also check if image_metadata exists and preserve it
+      if (payload.image_metadata || payload.imageMetadata) {
+        payloadSnake.image_metadata = payload.image_metadata || payload.imageMetadata;
+      }
+      
+      // Keep full job for compatibility with UI which looks for `row.payload`
+      payloadSnake.payload = payload;
+      
+      console.log('💾 Saving job to database:', {
+        id: payloadSnake.id,
+        beforeImagesCount: payloadSnake.before_images?.length || 0,
+        afterImagesCount: payloadSnake.after_images?.length || 0,
+        beforeUrls: payloadSnake.before_images?.map((i: any) => i.url) || [],
+        afterUrls: payloadSnake.after_images?.map((i: any) => i.url) || []
+      });
+      
+      const { error } = await supabaseAdmin.from('jobs').upsert([payloadSnake], { returning: 'minimal' });
       if (error) {
         console.error('Failed to upsert job', error);
         return res.status(500).json({ error });
