@@ -607,7 +607,11 @@ export function BodyshopDataProvider({ children }: { children: ReactNode }) {
         job.status === "Completed" || job.currentStage === "Submitted to Customer"
       );
     }
-    return jobs.filter((job) => job.status === status);
+    // For Service and In-Progress, exclude jobs that have reached completion stage
+    return jobs.filter((job) =>
+      job.status === status &&
+      job.currentStage !== "Submitted to Customer"
+    );
   };
 
   const searchJobs = (query: string) => {
